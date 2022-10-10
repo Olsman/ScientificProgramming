@@ -145,3 +145,5 @@ Tumors <- ggplot(MetaData, aes(x = Category, y = Tumors, fill = Category)) +
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
 Tumors
+
+# test 1 2 3 
