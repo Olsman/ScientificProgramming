@@ -1,3 +1,5 @@
+# comparing outlier detection pre-processed metabolite data
+
 ########## Isolation forest for outlier removal (with pre-processing metabolomics data) ########## 
 # normalize
 source("PQNfunction.R")
