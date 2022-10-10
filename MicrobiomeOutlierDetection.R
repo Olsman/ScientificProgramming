@@ -1,4 +1,4 @@
-# Code 04-10-2022 - METABOLITES
+# Microbiome outlier detection
 # Scientific Programming
 # Rosan Olsman
 
