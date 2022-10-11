@@ -101,6 +101,11 @@ ggplot(data.scores, aes(x = NMDS1, y = NMDS2, color = Category)) +
 # obtain dataframe with numerical microbiome data
 microbiome <- as.data.frame(t(NumMicrobiome))
 
+########## Isolation forest for outlier removal (without further pre-processing metabolomics data) ########## 
+install.packages("IsolationForest", repos="http://R-Forge.R-project.org")
+# yes - packages that need compilation
+library("IsolationForest")
+
 # train isolation forest
 IsolationTreeMicrobiome <- IsolationTrees(microbiome, rFactor = 0)   #rFactor = 0; fully deterministic
 AnomalyScoreMicrobiome <- AnomalyScore(microbiome, IsolationTreeMicrobiome)
@@ -196,5 +201,6 @@ ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Category)) +
   labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS score without outliers") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 
+
 # save data without the outliers
-# transMicrobiome <- asinh(NumMicrobiome)
+write.csv(NumMicrobiomeFiltered, file = "FilteredMicrobiome.csv", row.names = TRUE)
