@@ -240,7 +240,9 @@ inclusion <- plotDataIT %>%
 
 # obtain sample ID and samples from included values
 index <- row.names(inclusion)
-MetabolitesDataMet <- as.data.frame(t(MetabolitesData[,14:43]))
+MetabolitesDataMet <- MetabolitesData[,14:43]
+rownames(MetabolitesDataMet) <- MetabolitesData$COMP_ID
+MetabolitesDataMet <- as.data.frame(t(MetabolitesDataMet))
 
 # new data frame with only included samples
 metabolitesFiltered <- MetabolitesDataMet %>%
@@ -288,4 +290,4 @@ ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Category, shape = Sex)) 
 
 
 # save data with removed outliers 
-
+write.csv(t(metabolitesFiltered), file = "FilteredMetabolite.csv")
