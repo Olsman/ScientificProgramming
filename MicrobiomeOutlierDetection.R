@@ -203,4 +203,4 @@ ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Category)) +
 
 
 # save data without the outliers
-write.csv(NumMicrobiomeFiltered, file = "FilteredMicrobiome.csv", row.names = TRUE)
+write.csv(t(NumMicrobiomeFiltered), file = "FilteredMicrobiome.csv", row.names = TRUE)
