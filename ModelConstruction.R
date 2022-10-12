@@ -2,6 +2,8 @@
 # Scientific Programming
 # Rosan Olsman
 
+# IMPORTANT !! DO NOT PRE_PROCESS TRAIN AND TEST TOGETHER!!!!!!!!!??
+
 
 ########## Import and examine data ########## 
 # go to your personal working directory - set working directory
@@ -65,6 +67,20 @@ metcat$TumorB <- as.factor(ifelse(metcat$Tumors > 0, "1", "0"))
 data$Tumor <- metcat$TumorB
 # data$ID <- rownames(metcat)
 
+# examine the class imbalance after outlier detection 
+ggplot(data = metcat, aes(x = Category, fill = Sex)) +
+  geom_bar(position = position_dodge()) +
+  theme_classic() +
+  labs(title = "Gender per Condition - Concatenated Data", x = "Condition", y = "Count") +
+  scale_fill_manual(values=c("#F8766D", "#00BFC4")) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"))
+
+########### TRAIN MODEL ##########
+# set seed for reproducibility
 set.seed(667)
 train <- createDataPartition(data[,"Tumor"],
                              p = 0.8,
@@ -73,8 +89,9 @@ train <- createDataPartition(data[,"Tumor"],
 data.trn <- data[train,]
 data.tst <- data[-train,]
 
-ctrl <- trainControl(method = "cv",
-                     number = 10)
+ctrl <- trainControl(method = "repeatedcv",
+                     number = 10,
+                     repeats = 3)
 
 fit.cv <- train(Tumor ~ .,
                 data = data.trn,
@@ -93,94 +110,73 @@ confusionMatrix(table(data.tst[,"Tumor"], pred))
 VarImp <- varImp(fit.cv)
 VarImp <- VarImp$importance
 
-ggplot(data = metcat, aes(x = Category, fill = Sex)) +
-  geom_bar(position = position_dodge()) +
-  theme_classic() +
-  labs(title = "Gender per Condition", x = "Condition", y = "Count") +
-  scale_fill_manual(values=c("#F8766D", "#00BFC4")) + 
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
+
 
 VarImp <- arrange(VarImp, Overall)
 top10 <- tail(VarImp, n = 20)
 ###########
 
+fit.cvSVM <- train(Tumor ~ .,
+                data = data.trn,
+                methods = "svmLinearWeights2",
+                trControl = ctrl,
+                tuneLength = 50) # only 44?
+
+print(fit.cvSVM)
+plot(fit.cvSVM)
+fit.cvSVM$results
+
+pred2 <- predict(fit.cvSVM, data.tst)
+confusionMatrix(table(data.tst[,"Tumor"], pred2))
+
+VarImp2 <- varImp(fit.cvSVM)
+VarImp2 <- VarImp2$importance
+
+
+### multinom
+mnom <- train(Tumor ~ .,
+             data = data.trn,
+             method = "multinom",
+             trControl = ctrl)
+print(mnom)
+plot(mnom)
+mnom$results
+
+pred3 <- predict(mnom, data.tst)
+confusionMatrix(table(data.tst[,"Tumor"], pred3))
+
+VarImp3 <- varImp(mnom)
+VarImp3 <- VarImp3$importance
+
+
+############################
+
+resamps <- resamples(list(RF = fit.cv,
+                          SVM = fit.cvSVM,
+                          MNOM = mnom))
+
+# compare RF and SVM
+summary(resamps)
+
+
+getModelInfo()$mnom$parameters
+
+
+##### recursive feature elemination
+set.seed(355)
+
+rfeCtrl <- rfeControl(functions = rfFuncs,
+                      method = "cv",
+                      verbose = FALSE)
+
+rfProfile2 <- rfe(x = data, 
+                 y = data[,"Tumor"], 
+                 sizes = subsets,
+                 rfeControl = rfeCtrl)
+
+rfProfile2
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#concatenate
-ConcatenatePP <- as.data.frame(colnames(scaleMetabolites))
-transMicrobiome <- as.data.frame(t(transMicrobiome))
-ConcatenatePP <- transMicrobiome %>%
-  filter(rownames(transMicrobiome) %in% ConcatenatePP[,1])
-remove <- setdiff(colnames(scaleMetabolites), rownames(ConcatenatePP))
-scaleMetabolites <- scaleMetabolites[ , !(names(scaleMetabolites) %in% remove)]
-
-# sanity check 
-setdiff(colnames(scaleMetabolites), rownames(ConcatenatePP))
-
-# concatenate data
-Concatenate <- rbind(scaleMetabolites, t(ConcatenatePP))
-
-ConcatenateMeta <- MetaData %>%
-  filter(rownames(MetaData) %in% colnames(Concatenate))
-
-ConcatenateTogether <- as.matrix(rbind(Concatenate, ConcatenateMeta$Category))
-
-
-set.seed(1234) # !!!!!! DO NOT UNDERSTAND DOES NOT WOK????
-trainIndex <- createDataPartition(ConcatenateMeta$Category,
-                                  p = 0.80, 
-                                  list = FALSE, 
-                                  times = 1)
-head(trainIndex)
-
-Train <- as.data.frame(t(Concatenate[,trainIndex]))
-Test  <- as.data.frame(t(Concatenate[,-trainIndex]))
-
-TrainMeta <- MetaData %>%
-  filter(rownames(MetaData) %in% rownames(Train))
-
-
-RF = 'cforest'
-
-fitControl <- trainControl(## 10-fold CV
-  method = "repeatedcv",
-  number = 10,
-  ## repeated ten times
-  repeats = 10)
-
-
-
-set.seed(85)
-gbmFit1 <- train(Train, TrainMeta$Category,
-                 method = "gbm", 
-                 trControl = fitControl,
-                 ## This last option is actually one
-                 ## for gbm() that passes through
-                 verbose = FALSE)
-# yes
-gbmFit1
