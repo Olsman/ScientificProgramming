@@ -39,6 +39,7 @@ metadata <- data.frame(read_excel("./Dataset/MetaTumourData.xlsx"), row.names = 
 
 # further pre-process data - microbiome
 df_micro <- as.data.frame(asinh(df_micro))
+df_micro <- as.data.frame((df_micro - rowMeans(df_micro))/(apply(df_micro,1,sd)))
 
 # further pre-process data - metabolite
 source("PQNfunction.R")
@@ -169,13 +170,23 @@ rfeCtrl <- rfeControl(functions = rfFuncs,
                       method = "cv",
                       verbose = FALSE)
 
-rfProfile2 <- rfe(x = data, 
-                 y = data[,"Tumor"], 
+# proportion of subsets
+set.seed(355)
+subsets <- c(10, 20, 30, 40, 50, 60)
+
+drop <- c("Tumor")
+data.trn2 <- data.trn[,!(names(data.trn) %in% drop)]
+
+rfProfile2 <- rfe(x = data.trn2, 
+                 y = data.trn$Tumor, 
                  sizes = subsets,
                  rfeControl = rfeCtrl)
 
 rfProfile2
 
+best20features <- predictors(rfProfile2)
+
+# now select these features to train the new model? RF?
 
 
 # examine the class imbalance after outlier detection 
@@ -193,5 +204,28 @@ ggplot(data = metcat, aes(x = TumorB)) +
 sum(metcat$TumorB == 1)
 sum(metcat$TumorB == 0)
 
-## DO PCA ON TUMORS
+##################
+# with response as a integer (0/1)
+fit_logistic <- train(Tumor ~.,
+                      data = data.trn,
+                      method = "glmnet",
+                      trControl = ctrl,
+                      family = "binomial")
+print(fit_logistic)
+pred4 <- predict(fit_logistic, data.tst)
+confusionMatrix(table(data.tst[,"Tumor"], pred4))
+
+VarImp4 <- varImp(fit_logistic)
+VarImp4 <- VarImp4$importance
+
+VarImp4 <- arrange(VarImp4, Overall)
+top20logistic <- tail(VarImp4, n = 20)
+
+featureElemination <- as.data.frame(best20features)
+top20logistic$features <- gsub("`","",rownames(top20logistic))
+rownames(top20rf) <- top20rf$`rownames(top10)`
+top20rf$features <- gsub("`","",rownames(top20rf))
+
+
+
 
