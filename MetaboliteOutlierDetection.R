@@ -289,5 +289,33 @@ ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Category, shape = Sex)) 
         axis.line = element_line(colour = "black"))
 
 
+# PCA plot - tumors
+plotDataITexluded$Tumor <- as.factor(ifelse(plotDataITexluded$Tumors > 0, "Tumor", "No Tumor"))
+
+# PCA
+ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Tumor)) +
+  geom_point() +
+  labs(x=paste("PC1: ", round(pcaResultsIT@R2[1] * 100, 1), "% of the variance"),
+       y=paste("PC2: ", round(pcaResultsIT@R2[2] * 100, 1), "% of the variance"),
+       title = "Metabolite PCA plot after outlier removal - Tumor/No Tumor") +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"))
+
+# PCA 
+ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Tumors)) +
+  geom_point() +
+  labs(x=paste("PC1: ", round(pcaResultsIT@R2[1] * 100, 1), "% of the variance"),
+       y=paste("PC2: ", round(pcaResultsIT@R2[2] * 100, 1), "% of the variance"),
+       title = "Metabolite PCA plot after outlier removal") +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"))
+
+
 # save data with removed outliers 
 write.csv(t(metabolitesFiltered), file = "FilteredMetabolite.csv")
