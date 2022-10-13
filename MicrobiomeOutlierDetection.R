@@ -201,6 +201,23 @@ ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Category)) +
   labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS score without outliers") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 
+# NMDS for tumor
+data.scoresFiltered$Tumor <- sub_dfMBFiltered$Tumors
+data.scoresFiltered$Tumor <- as.factor(ifelse(data.scoresFiltered$Tumor > 0, "Tumor", "No Tumor"))
+
+# NMDS coloured for tumor yes/no
+ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Tumor)) + 
+  geom_point() +
+  theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
+        axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
+        legend.text = element_text(size = 12, face ="bold", colour ="black"), 
+        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
+        axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
+        legend.title = element_text(size = 14, colour = "black", face = "bold"), 
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+        legend.key=element_blank()) + 
+  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS score without outliers") +
+  annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 
 # save data without the outliers
 write.csv(t(NumMicrobiomeFiltered), file = "FilteredMicrobiome.csv", row.names = TRUE)
