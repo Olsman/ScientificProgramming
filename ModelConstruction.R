@@ -120,7 +120,7 @@ fit.cvSVM <- train(Tumor ~ .,
                 data = data.trn,
                 methods = "svmLinearWeights2",
                 trControl = ctrl,
-                tuneLength = 50) # only 44?
+                tuneLength = 50) # only 44? maybe only 44 features unique among samples
 
 print(fit.cvSVM)
 plot(fit.cvSVM)
@@ -178,5 +178,20 @@ rfProfile2
 
 
 
+# examine the class imbalance after outlier detection 
+ggplot(data = metcat, aes(x = TumorB)) +
+  geom_bar(position = position_dodge()) +
+  theme_classic() +
+  labs(title = "Number of mice with or without tumour", x = "Condition", y = "Count") +
+  scale_fill_manual(values=c("#F8766D", "#00BFC4")) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"))
 
+sum(metcat$TumorB == 1)
+sum(metcat$TumorB == 0)
+
+## DO PCA ON TUMORS
 
