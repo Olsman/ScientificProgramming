@@ -75,7 +75,7 @@ ggplot(plotData, aes(x = PC1, y = PC2, color = Category, shape = Sex)) +
   geom_point() +
   labs(x=paste("PC1: ", round(pcaResults@R2[1] * 100, 1), "% of the variance"),
        y=paste("PC2: ", round(pcaResults@R2[2] * 100, 1), "% of the variance"),
-       title = "Scaled metabolomics data - no preprocessing") +
+       title = "Metabolomics data - before outlier removal") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -111,7 +111,7 @@ ggplot(plotDataIT, aes(x = PC1, y = PC2, color = AnomalyScore, shape = Category)
   scale_color_gradientn(colours = rainbow(5)) +
   labs(x=paste("PC1: ", round(pcaResults@R2[1] * 100, 1), "% of the variance"),
        y=paste("PC2: ", round(pcaResults@R2[2] * 100, 1), "% of the variance"),
-       title = "Scaled metabolites data coloured by anomaly score") +
+       title = "Metabolomics data - Anomaly Score") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -124,7 +124,7 @@ ggplot(plotDataIT, aes(x = PC1, y = PC2, color = Outlier)) +
   scale_color_manual(values = c("Normal" = "#00BFC4", "Outlier" = "#F8766D")) +
   labs(x=paste("PC1: ", round(pcaResults@R2[1] * 100, 1), "% of the variance"),
        y=paste("PC2: ", round(pcaResults@R2[2] * 100, 1), "% of the variance"),
-       title = "PCA: Metabolites coloured by Anonamly Score Treshold") +
+       title = "Metabolomics data - Outliers") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -179,7 +179,7 @@ ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Category, shape = Sex)) 
   geom_point() +
   labs(x=paste("PC1: ", round(pcaResultsIT@R2[1] * 100, 1), "% of the variance"),
        y=paste("PC2: ", round(pcaResultsIT@R2[2] * 100, 1), "% of the variance"),
-       title = "Metabolite PCA plot after outlier removal") +
+       title = "MMetabolomics data - after outlier removal") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
