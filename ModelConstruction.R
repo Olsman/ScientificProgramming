@@ -2,8 +2,6 @@
 # Scientific Programming
 # Rosan Olsman
 
-# IMPORTANT !! DO NOT PRE_PROCESS TRAIN AND TEST TOGETHER!!!!!!!!!??
-
 
 ########## Import and examine data ########## 
 # go to your personal working directory - set working directory
