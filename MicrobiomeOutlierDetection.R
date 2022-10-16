@@ -12,7 +12,7 @@ DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB101
 CRANpackages <- c("tidyverse", "readxl", "devtools", "ggplot2", "dplyr", "MASS")
 
 # Required Bioconductor packages:
-BiocPackages <- c("vioplot", "plotly", "pcaMethods")
+BiocPackages <- c("vioplot", "plotly", "pcaMethods", "limma")
 
 # Install (if not yet installed) and load the required packages: 
 for (pkg in CRANpackages) {
@@ -53,16 +53,16 @@ row.names(NumMicrobiome) <- rownames(MicrobiomeData)
 NumMicrobiome <- as.matrix(NumMicrobiome)
 
 # download vegan here, otherwise you will get an error - conflicting packages
-# if you get an error; remove packages, then download packages above before installing vegan
 install.packages("vegan")
 library(vegan)
 
 # create NMDS plot using bray as the distance method
 set.seed(123)
-nmds = metaMDS(t(NumMicrobiome), distance = "bray")
+nmds = metaMDS(as.matrix(t(NumMicrobiome)), distance = "bray")
 nmds     # stress: 0.09, which is ok
 
 # obtain the data scores for NMDS plot
+# if you get an error; re-download vegan package after downloading all other packages
 data.scores = as.data.frame(scores(nmds)$sites)
 
 # sanity check
@@ -115,9 +115,11 @@ colnames(plotDataMicrobiome)[which(names(plotDataMicrobiome) == rev(names(plotDa
 plotDataMicrobiome$Outlier <- as.factor(ifelse(plotDataMicrobiome$AnomalyScore >=0.8, "Outlier", "Normal"))
 sum(plotDataMicrobiome$Outlier == "Outlier")
 
+
 # NMDS plot; samples coloured by the anomaly score
 ggplot(plotDataMicrobiome, aes(x = NMDS1, y = NMDS2, color = AnomalyScore, shape = Category)) + 
   geom_point() +
+  scale_color_gradientn(colours = rainbow(5)) +
   theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
         axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
         legend.text = element_text(size = 12, face ="bold", colour ="black"), 
@@ -164,10 +166,11 @@ row.names(NumMicrobiomeFiltered) <- rownames(inclusionMicrobiome)
 # NMDS plot without outliers
 set.seed(123)
 nmdsFiltered = metaMDS(as.matrix(NumMicrobiomeFiltered), distance = "bray")
-nmdsFiltered
+nmdsFiltered    # stress: 0.08, which is ok
 # plot(nmdsFiltered)
 
 # obtain the data scores for NMDS plot without the outliers
+# if you get an error; re-download vegan package after downloading all other packages
 data.scoresFiltered = as.data.frame(scores(nmdsFiltered)$sites)
 
 # sanity check
@@ -196,7 +199,7 @@ ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Category)) +
         panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
         legend.key=element_blank()) + 
   labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS score without outliers") +
-  annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
+  annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.08")
 
 # NMDS for tumor
 data.scoresFiltered$Tumor <- sub_dfMBFiltered$Tumors
