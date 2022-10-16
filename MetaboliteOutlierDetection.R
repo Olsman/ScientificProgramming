@@ -194,7 +194,7 @@ ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Tumor)) +
   geom_point() +
   labs(x=paste("PC1: ", round(pcaResultsIT@R2[1] * 100, 1), "% of the variance"),
        y=paste("PC2: ", round(pcaResultsIT@R2[2] * 100, 1), "% of the variance"),
-       title = "Metabolite PCA plot after outlier removal - Tumor/No Tumor") +
+       title = "Metabolite PCA - Tumor Presence") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
