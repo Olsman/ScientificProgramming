@@ -12,7 +12,7 @@ DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB101
 CRANpackages <- c("tidyverse", "readxl", "devtools", "ggplot2", "dplyr", "MASS")
 
 # Required Bioconductor packages:
-BiocPackages <- c("vioplot", "plotly", "pcaMethods", "limma")
+BiocPackages <- c("vioplot", "plotly", "pcaMethods")
 
 # Install (if not yet installed) and load the required packages: 
 for (pkg in CRANpackages) {
@@ -32,14 +32,11 @@ for (pkg in BiocPackages) {
 
 # Import data
 MetaData <- data.frame(read_excel("./Dataset/MetaTumourData.xlsx"), row.names = "Mouse.ID")
-MetabolitesData <- data.frame(read_excel("./Dataset/StoolMetabolites.xlsx"), check.names = FALSE)
 MicrobiomeData <- data.frame(read_excel("./Dataset/OTUTable.xlsx"), row.names = "ID", check.names = FALSE)
 
 # Sanity check - identify removed samples
 all(colnames(MicrobiomeData) %in% rownames(MetaData)) # FALSE: one sample with wrong label - 243 is missing
 setdiff(rownames(MetaData), colnames(MicrobiomeData))
-all(colnames(MetabolitesData[,14:43]) %in% rownames(MetaData))
-setdiff(rownames(MetaData), colnames(MetabolitesData[,14:43]))
 
 # change 233 to 243
 setdiff(colnames(MicrobiomeData), rownames(MetaData))
@@ -48,7 +45,6 @@ all(colnames(MicrobiomeData) %in% rownames(MetaData))
 
 # check for NAs in dataset - no missing values in microbiome and metabolite data
 which(colSums(is.na(MetaData))>0)
-which(colSums(is.na(MetabolitesData))>0)
 which(colSums(is.na(MicrobiomeData))>0)
 
 # set in right format - set scientific notation (e.g., E-04 to numeric)
@@ -61,10 +57,9 @@ NumMicrobiome <- as.matrix(NumMicrobiome)
 install.packages("vegan")
 library(vegan)
 
-# obtain a matrix containing microbiome data set as numeric
-m_com = as.matrix(NumMicrobiome)
-# set.seed(123)
-nmds = metaMDS(t(m_com), distance = "bray")
+# create NMDS plot using bray as the distance method
+set.seed(123)
+nmds = metaMDS(t(NumMicrobiome), distance = "bray")
 nmds     # stress: 0.09, which is ok
 
 # obtain the data scores for NMDS plot
@@ -76,12 +71,14 @@ setdiff(rownames(t(MicrobiomeData)), rownames(MetaData))
 
 # obtain index values for samples included in microbiome data analysis
 indexMB <- as.data.frame(rownames(data.scores))
+MetaData$ID <- rownames(MetaData)
 sub_dfMB <- MetaData %>%
-  filter(rownames(MetaData) %in% indexMB[,1]) 
+  filter(MetaData$ID %in% indexMB[,1]) 
 
 # add the right category for each sample
-data.scores$Category <- sub_dfMB$Category
-head(data.scores)
+data.scores$ID <- rownames(data.scores)
+data.scores <- merge(data.scores, sub_dfMB, by = "ID")
+rownames(data.scores) <- data.scores$ID
 
 # plot NMDS plot
 ggplot(data.scores, aes(x = NMDS1, y = NMDS2, color = Category)) + 
@@ -165,9 +162,8 @@ NumMicrobiomeFiltered <- as.data.frame(sapply(microbiomeFiltered, as.numeric))
 row.names(NumMicrobiomeFiltered) <- rownames(inclusionMicrobiome)
 
 # NMDS plot without outliers
-m_comFiltered = as.matrix(NumMicrobiomeFiltered)
-# set.seed(123)
-nmdsFiltered = metaMDS(m_comFiltered, distance = "bray")
+set.seed(123)
+nmdsFiltered = metaMDS(as.matrix(NumMicrobiomeFiltered), distance = "bray")
 nmdsFiltered
 # plot(nmdsFiltered)
 
@@ -181,11 +177,12 @@ setdiff(rownames(t(MicrobiomeData)), rownames(MetaData))
 # obtain index values for samples included in microbiome data analysis
 indexMBFiltered <- as.data.frame(rownames(data.scoresFiltered))
 sub_dfMBFiltered <- MetaData %>%
-  filter(rownames(MetaData) %in% indexMBFiltered[,1]) 
+  filter(MetaData$ID %in% indexMBFiltered[,1]) 
 
 # add the right category for each sample
-data.scoresFiltered$Category <- sub_dfMBFiltered$Category
-head(data.scoresFiltered)
+data.scoresFiltered$ID <- rownames(data.scoresFiltered)
+data.scoresFiltered <- merge(data.scoresFiltered, sub_dfMBFiltered, by = "ID")
+rownames(data.scoresFiltered) <- data.scoresFiltered$ID
 
 # NMDS plot without the outliers
 ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Category)) + 
@@ -218,6 +215,7 @@ ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Tumor)) +
         legend.key=element_blank()) + 
   labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS score without outliers") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
+# no clear seperation visible in tumor presence after outlier removal
 
 # save data without the outliers
 write.csv(t(NumMicrobiomeFiltered), file = "FilteredMicrobiome.csv", row.names = TRUE)
