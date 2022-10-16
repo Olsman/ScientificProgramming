@@ -59,9 +59,9 @@ Weight <- ggplot(MetaData, aes(x = Category, y = Weight, fill = Category)) +
   geom_violin(width=1, trim = FALSE) +
   geom_boxplot(width=0.1) +
   #geom_jitter(shape=16, position=position_jitter(0.05)) +
-  labs(x = "Category",
+  labs(x = "Condition",
        y = "Body Weight (g)",
-       title = "Violin Plot: Body Weight") +
+       title = "Body Weight per Condition") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -123,7 +123,7 @@ TumorVolume <- ggplot(MetaData, aes(x = Category, y = Tumor.volume, fill = Categ
   geom_jitter(shape=16, position=position_jitter(0.05)) +
   labs(x = "Category",
        y = "Tumor Volume",
-       title = "Violin Plot: Tumor Volume") +
+       title = "Tumor Volume per Condition") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -138,10 +138,13 @@ Tumors <- ggplot(MetaData, aes(x = Category, y = Tumors, fill = Category)) +
   geom_jitter(shape=16, position=position_jitter(0.05)) +
   labs(x = "Category",
        y = "Tumours",
-       title = "Violin Plot: Tumor count") +
+       title = "Tumor count per Condition") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
 Tumors
+
+
+# Add explorative data analysis per data type
