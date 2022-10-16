@@ -36,35 +36,43 @@ df_meta <- read.csv("FilteredMetabolite.csv", header = TRUE, row.names = 1, sep 
 metadata <- data.frame(read_excel("./Dataset/MetaTumourData.xlsx"), row.names = "Mouse.ID")
 
 # further pre-process data - microbiome
+# inverse hyperbolic sine transformation
 df_micro <- as.data.frame(asinh(df_micro))
-df_micro <- as.data.frame((df_micro - rowMeans(df_micro))/(apply(df_micro,1,sd)))
 
 # further pre-process data - metabolite
+# probabilistic quotient normalization
 source("PQNfunction.R")
 df_meta <- pqn(as.matrix(df_meta))
+# log2 transformation
 df_meta <- log2(df_meta)
+# scaling
 df_meta <- as.data.frame((df_meta - rowMeans(df_meta))/(apply(df_meta,1,sd)))
 
-remove <- setdiff(colnames(df_meta), colnames(df_micro))
+# removing samples that are not present in both datasets
+# metabolites v microbiome
+remove <- setdiff(colnames(df_meta), colnames(df_micro)) # only one sample
 df_meta <- df_meta[, !(names(df_meta) %in% remove)]
-
-remove <- setdiff(colnames(df_micro), colnames(df_meta))
+# microbiome v metabolites
+remove <- setdiff(colnames(df_micro), colnames(df_meta))  # 12 samples
 df_micro <- df_micro[, !(names(df_micro) %in% remove)]
 
+# concatenate dataframes - 28 samples remain to train the model
 df_com_f <- rbind(df_micro, df_meta)
 
 install.packages("rpart.plot")
 library(rpart.plot)
 
-str(t(df_com_f))
-summary(df_com_f)
-
+# store data and metadata for concatenated datatypes
 data <- as.data.frame(t(df_com_f))
+data$ID <- rownames(data)
 metcat <- metadata %>%
   filter(rownames(metadata) %in% rownames(data))
+metcat$ID <- rownames(metcat)
+
+# define new column containing binary classification of tumor presence
 metcat$TumorB <- as.factor(ifelse(metcat$Tumors > 0, "1", "0"))
-data$Tumor <- metcat$TumorB
-# data$ID <- rownames(metcat)
+data$Tumor <- DF1$Col = DF2$Col[match(DF1$Name,DF2$Name)]
+
 
 # examine the class imbalance after outlier detection 
 ggplot(data = metcat, aes(x = Category, fill = Sex)) +
