@@ -10,10 +10,10 @@ DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB101
 
 # Packages
 # Required CRAN packages:
-CRANpackages <- c("tidyverse", "readxl", "devtools", "ggplot2", "dplyr", "MASS")
+CRANpackages <- c("tidyverse", "readxl", "ggplot2", "dplyr")
 
 # Required Bioconductor packages:
-BiocPackages <- c("vioplot", "plotly", "pcaMethods", "limma")
+BiocPackages <- c("vioplot", "plotly")
 
 # Install (if not yet installed) and load the required packages: 
 for (pkg in CRANpackages) {
@@ -118,9 +118,9 @@ Gender
 
 # Data visualization - tumor volume
 TumorVolume <- ggplot(MetaData, aes(x = Category, y = Tumor.volume, fill = Category)) +
-  geom_violin(width=1, trim = FALSE) +
+  #geom_violin(width=1, trim = FALSE) +
   geom_boxplot(width=0.1) +
-  #geom_jitter(shape=16, position=position_jitter(0.05)) +
+  geom_jitter(shape=16, position=position_jitter(0.05)) +
   labs(x = "Category",
        y = "Tumor Volume",
        title = "Violin Plot: Tumor Volume") +
@@ -133,9 +133,9 @@ TumorVolume
 
 # Data visualization - number of tumors
 Tumors <- ggplot(MetaData, aes(x = Category, y = Tumors, fill = Category)) +
-  geom_violin(width=1, trim = FALSE) +
+  #geom_violin(width=1, trim = FALSE) +
   geom_boxplot(width=0.1) +
-  #geom_jitter(shape=16, position=position_jitter(0.05)) +
+  geom_jitter(shape=16, position=position_jitter(0.05)) +
   labs(x = "Category",
        y = "Tumours",
        title = "Violin Plot: Tumor count") +
