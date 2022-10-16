@@ -91,7 +91,7 @@ ggplot(data.scores, aes(x = NMDS1, y = NMDS2, color = Category)) +
         legend.title = element_text(size = 14, colour = "black", face = "bold"), 
         panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
         legend.key=element_blank()) + 
-  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS plot before pre-processing") +
+  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome data - before outlier removal") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 
 
@@ -128,7 +128,7 @@ ggplot(plotDataMicrobiome, aes(x = NMDS1, y = NMDS2, color = AnomalyScore, shape
         legend.title = element_text(size = 14, colour = "black", face = "bold"), 
         panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
         legend.key=element_blank()) + 
-  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS score coloured by anomaly score") +
+  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome data - Anomaly Score") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 
 # NMDS plot; samples coloured if they are considered to be an outlier
@@ -142,7 +142,7 @@ ggplot(plotDataMicrobiome, aes(x = NMDS1, y = NMDS2, color = Outlier)) +
         legend.title = element_text(size = 14, colour = "black", face = "bold"), 
         panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
         legend.key=element_blank()) + 
-  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS score coloured by outlier") +
+  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome data - Outliers") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 
 
@@ -198,7 +198,7 @@ ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Category)) +
         legend.title = element_text(size = 14, colour = "black", face = "bold"), 
         panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
         legend.key=element_blank()) + 
-  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS score without outliers") +
+  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome data - after outlier removal") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.08")
 
 # NMDS for tumor
@@ -216,7 +216,7 @@ ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Tumor)) +
         legend.title = element_text(size = 14, colour = "black", face = "bold"), 
         panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
         legend.key=element_blank()) + 
-  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS score without outliers") +
+  labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS - Tumor Presence") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 # no clear seperation visible in tumor presence after outlier removal
 
