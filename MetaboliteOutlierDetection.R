@@ -33,117 +33,14 @@ for (pkg in BiocPackages) {
 # Import data
 MetaData <- data.frame(read_excel("./Dataset/MetaTumourData.xlsx"), row.names = "Mouse.ID")
 MetabolitesData <- data.frame(read_excel("./Dataset/StoolMetabolites.xlsx"), check.names = FALSE)
-MicrobiomeData <- data.frame(read_excel("./Dataset/OTUTable.xlsx"), row.names = "ID", check.names = FALSE)
 
 # Sanity check - identify common and different samples for each dataset
-all(colnames(MicrobiomeData) %in% rownames(MetaData)) # FALSE: one sample with wrong label - 243 is missing
-setdiff(rownames(MetaData), colnames(MicrobiomeData))
 all(colnames(MetabolitesData[,14:43]) %in% rownames(MetaData))
 setdiff(rownames(MetaData), colnames(MetabolitesData[,14:43]))
-
-# most likely that 233 should have been 243; change 233 to 243
-setdiff(colnames(MicrobiomeData), rownames(MetaData))
-names(MicrobiomeData)[names(MicrobiomeData) == '233'] <- '243'
-all(colnames(MicrobiomeData) %in% rownames(MetaData))
 
 # check for NAs in dataset - no missing values in microbiome and metabolite data
 which(colSums(is.na(MetaData))>0)
 which(colSums(is.na(MetabolitesData))>0)
-which(colSums(is.na(MicrobiomeData))>0)
-
-
-########## Basic data exploration - metabolite ########## 
-# Data visualization - weight
-Weight <- ggplot(MetaData, aes(x = Category, y = Weight, fill = Category)) +
-  geom_violin(width=1, trim = FALSE) +
-  geom_boxplot(width=0.1) +
-  #geom_jitter(shape=16, position=position_jitter(0.05)) +
-  labs(x = "Category",
-       y = "Body Weight (g)",
-       title = "Violin Plot: Body Weight") +
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
-Weight
-# two possible outliers: 151 (WT) & 13 (WT)
-
-# Data visualization - fat mass
-FatMass <- ggplot(MetaData, aes(x = Category, y = Fat.mass, fill = Category)) +
-  geom_violin(width=1, trim = FALSE) +
-  geom_boxplot(width=0.1) +
-  #geom_jitter(shape=16, position=position_jitter(0.05)) +
-  labs(x = "Category",
-       y = "Fat Mass (g)",
-       title = "Violin Plot: Fat Mass") +
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
-FatMass
-# no clear outliers
-
-# Data visualization - lean mass
-LeanMass <- ggplot(MetaData, aes(x = Category, y = Lean.mass, fill = Category)) +
-  geom_violin(width=1, trim = FALSE) +
-  geom_boxplot(width=0.1) +
-  #geom_jitter(shape=16, position=position_jitter(0.05)) +
-  labs(x = "Category",
-       y = "Lean Mass (g)",
-       title = "Violin Plot: Lean Mass") +
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
-LeanMass
-# two possible outliers: 108 (HF) & 115 (LF)
-
-# Data visualization - sex
-Gender <- ggplot(data = MetaData, aes(x = Category, fill = Sex)) +
-  geom_bar(position = position_dodge()) +
-  theme_classic() +
-  labs(title = "Gender per Condition", x = "Condition", y = "Count") +
-  scale_fill_manual(values=c("#F8766D", "#00BFC4")) + 
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
-Gender
-# boxplot shows clear class imbalance for sex
-
-# Data visualization - tumor volume
-TumorVolume <- ggplot(MetaData, aes(x = Category, y = Tumor.volume, fill = Category)) +
-  geom_violin(width=1, trim = FALSE) +
-  geom_boxplot(width=0.1) +
-  #geom_jitter(shape=16, position=position_jitter(0.05)) +
-  labs(x = "Category",
-       y = "Tumor Volume",
-       title = "Violin Plot: Tumor Volume") +
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
-TumorVolume
-
-# Data visualization - number of tumors
-Tumors <- ggplot(MetaData, aes(x = Category, y = Tumors, fill = Category)) +
-  geom_violin(width=1, trim = FALSE) +
-  geom_boxplot(width=0.1) +
-  #geom_jitter(shape=16, position=position_jitter(0.05)) +
-  labs(x = "Category",
-       y = "Tumours",
-       title = "Violin Plot: Tumor count") +
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
-Tumors
 
 
 ########## Metabolite outlier removal ########## 
@@ -161,8 +58,9 @@ summary(pcaResults)
 
 # index - select metadata from samples included in metabolomics data 
 indexMets <- as.list(rownames(pcaResults@scores))
+MetaData$ID <- rownames(MetaData)
 sub_df <- MetaData %>%
-  filter(rownames(MetaData) %in% indexMets)
+  filter(MetaData$ID %in% indexMets)
 
 # sanity check
 all(rownames(pcaResults@scores) %in% rownames(sub_df))
@@ -266,7 +164,7 @@ summary(pcaResultsIT)
 # obtain metadata based on sample ID from the filtered data
 indexMetsIT <- as.list(rownames(pcaResultsIT@scores))
 sub_dfIT <- MetaData %>%
-  filter(rownames(MetaData) %in% indexMetsIT)
+  filter(MetaData$ID %in% indexMetsIT)
 
 # sanity check
 all(rownames(pcaResultsIT@scores) %in% rownames(sub_dfIT))
@@ -288,7 +186,6 @@ ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Category, shape = Sex)) 
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
 
-
 # PCA plot - tumors
 plotDataITexluded$Tumor <- as.factor(ifelse(plotDataITexluded$Tumors > 0, "Tumor", "No Tumor"))
 
@@ -303,19 +200,6 @@ ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Tumor)) +
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
-
-# PCA 
-ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Tumors)) +
-  geom_point() +
-  labs(x=paste("PC1: ", round(pcaResultsIT@R2[1] * 100, 1), "% of the variance"),
-       y=paste("PC2: ", round(pcaResultsIT@R2[2] * 100, 1), "% of the variance"),
-       title = "Metabolite PCA plot after outlier removal") +
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
-
 
 # save data with removed outliers 
 write.csv(t(metabolitesFiltered), file = "FilteredMetabolite.csv")
