@@ -71,7 +71,7 @@ metcat$ID <- rownames(metcat)
 
 # define new column containing binary classification of tumor presence
 metcat$TumorB <- as.factor(ifelse(metcat$Tumors > 0, "1", "0"))
-data$Tumor <- DF1$Col = DF2$Col[match(DF1$Name,DF2$Name)]
+data$Tumor  = metcat$TumorB[match(data$ID,metcat$ID)]
 
 
 # examine the class imbalance after outlier detection 
@@ -86,83 +86,97 @@ ggplot(data = metcat, aes(x = Category, fill = Sex)) +
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
 
+# remove all rows that carry no information
+data <- data[, colSums(data != 0) > 0]
+
 ########### TRAIN MODEL ##########
-# set seed for reproducibility
-set.seed(667)
+
+set.seed(12)
 train <- createDataPartition(data[,"Tumor"],
                              p = 0.8,
                              list = FALSE)
-
 data.trn <- data[train,]
+data.trn <- select(data.trn, -ID)
 data.tst <- data[-train,]
 
+# cross validation
 ctrl <- trainControl(method = "repeatedcv",
                      number = 10,
                      repeats = 3)
 
+# random forest
 fit.cv <- train(Tumor ~ .,
                 data = data.trn,
                 methods = "rf",
                 trControl = ctrl,
-                tuneLength = 50) # only 44?
+                tuneLength = 50) 
 
-
+# examine output
 print(fit.cv)
 plot(fit.cv)
 fit.cv$results
 
+# examine accuracy of the RF model
 pred <- predict(fit.cv, data.tst)
 confusionMatrix(table(data.tst[,"Tumor"], pred))
 
+# select most important features
 VarImp <- varImp(fit.cv)
-VarImp <- VarImp$importance
+VarImp <- arrange(VarImp$importance, Overall)
+featuresRF <- tail(VarImp, n = 20)
 
 
-
-VarImp <- arrange(VarImp, Overall)
-top10 <- tail(VarImp, n = 20)
-###########
-
+########### SVM ###########3
+# linear kernel - try others 
 fit.cvSVM <- train(Tumor ~ .,
                 data = data.trn,
                 methods = "svmLinearWeights2",
                 trControl = ctrl,
                 tuneLength = 50) # only 44? maybe only 44 features unique among samples
 
+# examine output
 print(fit.cvSVM)
 plot(fit.cvSVM)
 fit.cvSVM$results
 
+# examine accuracy of the SVM model
 pred2 <- predict(fit.cvSVM, data.tst)
 confusionMatrix(table(data.tst[,"Tumor"], pred2))
 
+# select important features
 VarImp2 <- varImp(fit.cvSVM)
-VarImp2 <- VarImp2$importance
+VarImp2 <- arrange(VarImp2$importance, Overall)
+featuresSVM <- tail(VarImp2, n = 20)
 
 
-### multinom
-mnom <- train(Tumor ~ .,
+### multinom - can it be used for 2 classes; look it up pls
+fit.cvMNOM <- train(Tumor ~ .,
              data = data.trn,
              method = "multinom",
              trControl = ctrl)
-print(mnom)
-plot(mnom)
-mnom$results
 
-pred3 <- predict(mnom, data.tst)
+# examine output
+print(fit.cvMNOM)
+plot(fit.cvMNOM)
+fit.cvMNOM$results
+
+# examine accuracy of the multinom model
+pred3 <- predict(fit.cvMNOM, data.tst)
 confusionMatrix(table(data.tst[,"Tumor"], pred3))
 
-VarImp3 <- varImp(mnom)
-VarImp3 <- VarImp3$importance
+# select important features
+VarImp3 <- varImp(fit.cvMNOM)
+VarImp3 <- arrange(VarImp3$importance, Overall)
+featuresMNOM <- tail(VarImp3, n = 20)
 
 
 ############################
 
 resamps <- resamples(list(RF = fit.cv,
                           SVM = fit.cvSVM,
-                          MNOM = mnom))
+                          MNOM = fit.cvMNOM))
 
-# compare RF and SVM
+# compare RF and SVM and MNOM
 summary(resamps)
 
 
@@ -170,14 +184,13 @@ getModelInfo()$mnom$parameters
 
 
 ##### recursive feature elemination
-set.seed(355)
-
+set.seed(123)
 rfeCtrl <- rfeControl(functions = rfFuncs,
                       method = "cv",
                       verbose = FALSE)
 
 # proportion of subsets
-set.seed(355)
+set.seed(123)
 subsets <- c(10, 20, 30, 40, 50, 60)
 
 drop <- c("Tumor")
@@ -227,11 +240,12 @@ VarImp4 <- VarImp4$importance
 VarImp4 <- arrange(VarImp4, Overall)
 top20logistic <- tail(VarImp4, n = 20)
 
-featureElemination <- as.data.frame(best20features)
-top20logistic$features <- gsub("`","",rownames(top20logistic))
-rownames(top20rf) <- top20rf$`rownames(top10)`
-top20rf$features <- gsub("`","",rownames(top20rf))
+# featureElemination <- as.data.frame(best20features)
+# top20logistic$features <- gsub("`","",rownames(top20logistic))
+# rownames(top20rf) <- top20rf$`rownames(top10)`
+# top20rf$features <- gsub("`","",rownames(top20rf))
 
 
-
+# optimize models
+# removed unnexasry features
 
