@@ -148,3 +148,4 @@ Tumors
 
 
 # Add explorative data analysis per data type
+# assess the imbalance - not neccesary(?) different because of mice
