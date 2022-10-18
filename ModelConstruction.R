@@ -3,6 +3,11 @@
 # Rosan Olsman
 
 
+#### --------------- WORK IN PROGRESS --------------- ####
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+
+
+
 ########## Import and examine data ########## 
 # go to your personal working directory - set working directory
 DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB1015 Scientific Programming")
@@ -59,8 +64,8 @@ df_micro <- df_micro[, !(names(df_micro) %in% remove)]
 # concatenate dataframes - 28 samples remain to train the model
 df_com_f <- rbind(df_micro, df_meta)
 
-install.packages("rpart.plot")
-library(rpart.plot)
+# install.packages("rpart.plot")
+# library(rpart.plot)
 
 # store data and metadata for concatenated datatypes
 data <- as.data.frame(t(df_com_f))
@@ -73,6 +78,9 @@ metcat$ID <- rownames(metcat)
 metcat$TumorB <- as.factor(ifelse(metcat$Tumors > 0, "1", "0"))
 data$Tumor  = metcat$TumorB[match(data$ID,metcat$ID)]
 
+# examine the class imbalance after outlier detection - tumor presence
+sum(metcat$TumorB == 1)
+sum(metcat$TumorB == 0)
 
 # examine the class imbalance after outlier detection 
 ggplot(data = metcat, aes(x = Category, fill = Sex)) +
@@ -86,11 +94,12 @@ ggplot(data = metcat, aes(x = Category, fill = Sex)) +
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
 
-# remove all rows that carry no information
+# remove all rows that carry no information - reduce no. of features
 data <- data[, colSums(data != 0) > 0]
 
 ########### TRAIN MODEL ##########
 
+# divide train and test set
 set.seed(12)
 train <- createDataPartition(data[,"Tumor"],
                              p = 0.8,
@@ -149,7 +158,7 @@ VarImp2 <- arrange(VarImp2$importance, Overall)
 featuresSVM <- tail(VarImp2, n = 20)
 
 
-### multinom - can it be used for 2 classes; look it up pls
+### multinom - can it actually be used for 2 classes; look it up pls
 fit.cvMNOM <- train(Tumor ~ .,
              data = data.trn,
              method = "multinom",
@@ -170,7 +179,7 @@ VarImp3 <- arrange(VarImp3$importance, Overall)
 featuresMNOM <- tail(VarImp3, n = 20)
 
 
-############################
+############ compare accuracy ############ 
 
 resamps <- resamples(list(RF = fit.cv,
                           SVM = fit.cvSVM,
@@ -180,65 +189,53 @@ resamps <- resamples(list(RF = fit.cv,
 summary(resamps)
 
 
-getModelInfo()$mnom$parameters
+# getModelInfo()$mnom$parameters
 
 
-##### recursive feature elemination
-set.seed(123)
-rfeCtrl <- rfeControl(functions = rfFuncs,
-                      method = "cv",
-                      verbose = FALSE)
+##### recursive feature elemination 
+# i will probably not do this anymore
 
-# proportion of subsets
-set.seed(123)
-subsets <- c(10, 20, 30, 40, 50, 60)
-
-drop <- c("Tumor")
-data.trn2 <- data.trn[,!(names(data.trn) %in% drop)]
-
-rfProfile2 <- rfe(x = data.trn2, 
-                 y = data.trn$Tumor, 
-                 sizes = subsets,
-                 rfeControl = rfeCtrl)
-
-rfProfile2
-
-best20features <- predictors(rfProfile2)
+# set.seed(123)
+# rfeCtrl <- rfeControl(functions = rfFuncs,
+#                       method = "cv",
+#                       verbose = FALSE)
+# 
+# # proportion of subsets
+# set.seed(123)
+# subsets <- c(10, 20, 30, 40, 50, 60)
+# 
+# drop <- c("Tumor")
+# data.trn2 <- data.trn[,!(names(data.trn) %in% drop)]
+# 
+# rfProfile2 <- rfe(x = data.trn2, 
+#                  y = data.trn$Tumor, 
+#                  sizes = subsets,
+#                  rfeControl = rfeCtrl)
+# 
+# rfProfile2
+# 
+# best20features <- predictors(rfProfile2)
 
 # now select these features to train the new model? RF?
 
 
-# examine the class imbalance after outlier detection 
-ggplot(data = metcat, aes(x = TumorB)) +
-  geom_bar(position = position_dodge()) +
-  theme_classic() +
-  labs(title = "Number of mice with or without tumour", x = "Condition", y = "Count") +
-  scale_fill_manual(values=c("#F8766D", "#00BFC4")) + 
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
 
-sum(metcat$TumorB == 1)
-sum(metcat$TumorB == 0)
 
 ##################
 # with response as a integer (0/1)
-fit_logistic <- train(Tumor ~.,
-                      data = data.trn,
-                      method = "glmnet",
-                      trControl = ctrl,
-                      family = "binomial")
-print(fit_logistic)
-pred4 <- predict(fit_logistic, data.tst)
-confusionMatrix(table(data.tst[,"Tumor"], pred4))
-
-VarImp4 <- varImp(fit_logistic)
-VarImp4 <- VarImp4$importance
-
-VarImp4 <- arrange(VarImp4, Overall)
-top20logistic <- tail(VarImp4, n = 20)
+# fit_logistic <- train(Tumor ~.,
+#                       data = data.trn,
+#                       method = "glmnet",
+#                       trControl = ctrl,
+#                       family = "binomial")
+# print(fit_logistic)
+# pred4 <- predict(fit_logistic, data.tst)
+# confusionMatrix(table(data.tst[,"Tumor"], pred4))
+# 
+# VarImp4 <- varImp(fit_logistic)
+# VarImp4 <- VarImp4$importance
+# 
+# VarImp4 <- arrange(VarImp4, Overall)
 
 # featureElemination <- as.data.frame(best20features)
 # top20logistic$features <- gsub("`","",rownames(top20logistic))
@@ -246,6 +243,16 @@ top20logistic <- tail(VarImp4, n = 20)
 # top20rf$features <- gsub("`","",rownames(top20rf))
 
 
-# optimize models
-# removed unnexasry features
+
+# TO DO:
+# - PCA concatenated data
+# - assess different model
+# - optimize model parameters
+# - model fusion; assess mutual and complementary aspects of each model
+# - assess feature stability; Jaccard index(?)
+
+
+
+
+
 
