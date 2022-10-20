@@ -91,7 +91,7 @@ library("IsolationForest")
 
 # obtain dataframe with scaled metabolites and ID 
 metabolites <- as.data.frame(t(scaledMetabolites))
-colnames(metabolites) <- MetabolitesData$COMP_ID
+colnames(metabolites) <- MetabolitesData$BIOCHEMICAL
 
 # building the isolation tree for outlier detection
 IsolationTree <- IsolationTrees(metabolites, rFactor = 0) #rFactor = 0; meaning fully deterministic
@@ -139,7 +139,7 @@ inclusion <- plotDataIT %>%
 # obtain sample ID and samples from included values
 index <- row.names(inclusion)
 MetabolitesDataMet <- MetabolitesData[,14:43]
-rownames(MetabolitesDataMet) <- MetabolitesData$COMP_ID
+rownames(MetabolitesDataMet) <- MetabolitesData$BIOCHEMICAL
 MetabolitesDataMet <- as.data.frame(t(MetabolitesDataMet))
 
 # new data frame with only included samples
