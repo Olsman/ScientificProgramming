@@ -306,6 +306,7 @@ summary(resamps)
 # - optimize model parameters
 # - model fusion; assess mutual and complementary aspects of each model
 # - assess feature stability; Jaccard index(?)
+# - check multipel PCs
 
 
 
