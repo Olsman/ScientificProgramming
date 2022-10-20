@@ -140,7 +140,8 @@ data.tst <- data[-train,]
 set.seed(12)
 ctrl <- trainControl(method = "repeatedcv",
                      number = 10,
-                     repeats = 5)
+                     repeats = 5,
+                     classProbs = TRUE)
 
 # random forest
 set.seed(12)
@@ -311,5 +312,19 @@ summary(resamps)
 
 
 # df_micro filtered from 274 to 10 features (?)
+
+
+
+# block scaling if you want to combine the data
+# look at them seperately 
+# then combine
+# URF for combined - do PCA on that (URF package) RF no class labels
+# 
+# High level fusin 
+# take the average of seperate to 
+# do ROC curve(balanced)
+
+# stacking 
+
 
 
