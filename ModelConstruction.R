@@ -40,6 +40,8 @@ df_micro <- read.csv("FilteredMicrobiome.csv", header = TRUE, row.names = 1, sep
 df_meta <- read.csv("FilteredMetabolite.csv", header = TRUE, row.names = 1, sep = ",", check.names = FALSE) # Metabolomics rows:columns -> metabolites:samples
 metadata <- data.frame(read_excel("./Dataset/MetaTumourData.xlsx"), row.names = "Mouse.ID")
 
+# metabolites <- read_xlsx("./Dataset/StoolMetabolites.xlsx")
+
 # further pre-process data - microbiome
 # inverse hyperbolic sine transformation
 df_micro <- as.data.frame(asinh(df_micro))
@@ -57,13 +59,38 @@ df_meta <- as.data.frame((df_meta - rowMeans(df_meta))/(apply(df_meta,1,sd)))
 # metabolites v microbiome
 remove <- setdiff(colnames(df_meta), colnames(df_micro)) # only one sample
 df_meta <- df_meta[, !(names(df_meta) %in% remove)]
+
+# filter features with low variance - no features with low variance
+df_meta.filt <- df_meta[rowVars(as.matrix(df_meta)) > 0.1,]
+hist(as.matrix(df_meta), breaks = 100)
+
+
 # microbiome v metabolites
 remove <- setdiff(colnames(df_micro), colnames(df_meta))  # 12 samples
 df_micro <- df_micro[, !(names(df_micro) %in% remove)]
 
-# concatenate dataframes - 28 samples remain to train the model
-df_com_f <- rbind(df_micro, df_meta)
+# filter methylation sites with low variance
+df_micro.filt <- df_micro[rowVars(as.matrix(df_micro)) > 0.01,]
+hist(as.matrix(df_micro.filt), breaks = 20)
 
+# concatenate dataframes - 28 samples remain to train the model
+df_com_f <- rbind(df_micro.filt, df_meta.filt)
+
+
+#-----------------PCA OF CONCATENATED DATA-----------------#
+# download vegan here, otherwise you will get an error
+install.packages("vegan")
+library(vegan)
+
+# Calculates Bray-Curtis distances between samples. Because taxa is in
+# columns, it is used to compare different samples. We transpose the
+# assay to get taxa to columns
+# is this even possible(?)
+
+
+
+
+#-----------------TRAIN MODEL-----------------#
 # install.packages("rpart.plot")
 # library(rpart.plot)
 
@@ -79,8 +106,8 @@ metcat$TumorB <- as.factor(ifelse(metcat$Tumors > 0, "1", "0"))
 data$Tumor  = metcat$TumorB[match(data$ID,metcat$ID)]
 
 # examine the class imbalance after outlier detection - tumor presence
-sum(metcat$TumorB == 1)
-sum(metcat$TumorB == 0)
+sum(metcat$TumorB == 1) # 14 tumor samples
+sum(metcat$TumorB == 0) # 14 non-tumor samples
 
 # examine the class imbalance after outlier detection 
 ggplot(data = metcat, aes(x = Category, fill = Sex)) +
@@ -96,6 +123,7 @@ ggplot(data = metcat, aes(x = Category, fill = Sex)) +
 
 # remove all rows that carry no information - reduce no. of features
 data <- data[, colSums(data != 0) > 0]
+data <- data[ , !names(data) %in% c("ID")]
 
 ########### TRAIN MODEL ##########
 
@@ -105,20 +133,22 @@ train <- createDataPartition(data[,"Tumor"],
                              p = 0.8,
                              list = FALSE)
 data.trn <- data[train,]
-data.trn <- select(data.trn, -ID)
 data.tst <- data[-train,]
 
-# cross validation
+
+# repeated cross validation
+set.seed(12)
 ctrl <- trainControl(method = "repeatedcv",
                      number = 10,
-                     repeats = 3)
+                     repeats = 5)
 
 # random forest
+set.seed(12)
 fit.cv <- train(Tumor ~ .,
                 data = data.trn,
                 methods = "rf",
-                trControl = ctrl,
-                tuneLength = 50) 
+                tuneGrid = expand.grid(mtry = 1:50),
+                trControl = ctrl) 
 
 # examine output
 print(fit.cv)
@@ -129,17 +159,22 @@ fit.cv$results
 pred <- predict(fit.cv, data.tst)
 confusionMatrix(table(data.tst[,"Tumor"], pred))
 
+
 # select most important features
 VarImp <- varImp(fit.cv)
-VarImp <- arrange(VarImp$importance, Overall)
-featuresRF <- tail(VarImp, n = 20)
+VarImp <- tail(arrange(VarImp$importance, Overall), n =20)
+VarImp$Feature <- rownames(VarImp)
+VarImp$Feature<-gsub("`","",VarImp$Feature)
+VarImp[with(VarImp, order(rev(Overall), Feature)),]
 
+ggplot(data=VarImp, aes(x=Overall, y=Feature)) +
+  geom_bar(stat="identity")
 
 ########### SVM ###########3
 # linear kernel - try others 
 fit.cvSVM <- train(Tumor ~ .,
                 data = data.trn,
-                methods = "svmLinearWeights2",
+                methods = "svmRadial",
                 trControl = ctrl,
                 tuneLength = 50) # only 44? maybe only 44 features unique among samples
 
@@ -152,10 +187,16 @@ fit.cvSVM$results
 pred2 <- predict(fit.cvSVM, data.tst)
 confusionMatrix(table(data.tst[,"Tumor"], pred2))
 
-# select important features
-VarImp2 <- varImp(fit.cvSVM)
-VarImp2 <- arrange(VarImp2$importance, Overall)
-featuresSVM <- tail(VarImp2, n = 20)
+# select most important features
+VarImpSVM <- varImp(fit.cvSVM)
+VarImpSVM <- tail(arrange(VarImpSVM$importance, Overall), n =20)
+VarImpSVM$Feature <- rownames(VarImpSVM)
+VarImpSVM$Feature<-gsub("`","",VarImpSVM$Feature)
+
+ggplot(data=VarImpSVM, aes(x=Overall, y=Feature)) +
+  geom_bar(stat="identity")
+
+
 
 
 ### multinom - can it actually be used for 2 classes; look it up pls
@@ -179,14 +220,7 @@ VarImp3 <- arrange(VarImp3$importance, Overall)
 featuresMNOM <- tail(VarImp3, n = 20)
 
 
-############ compare accuracy ############ 
 
-resamps <- resamples(list(RF = fit.cv,
-                          SVM = fit.cvSVM,
-                          MNOM = fit.cvMNOM))
-
-# compare RF and SVM and MNOM
-summary(resamps)
 
 
 # getModelInfo()$mnom$parameters
@@ -222,20 +256,42 @@ summary(resamps)
 
 
 ##################
-# with response as a integer (0/1)
-# fit_logistic <- train(Tumor ~.,
-#                       data = data.trn,
-#                       method = "glmnet",
-#                       trControl = ctrl,
-#                       family = "binomial")
-# print(fit_logistic)
-# pred4 <- predict(fit_logistic, data.tst)
-# confusionMatrix(table(data.tst[,"Tumor"], pred4))
-# 
-# VarImp4 <- varImp(fit_logistic)
-# VarImp4 <- VarImp4$importance
-# 
-# VarImp4 <- arrange(VarImp4, Overall)
+# logistic regression - elastic net
+fit_lR_glmnet <- train(Tumor ~.,
+                       data = data.trn,
+                       method = "glmnet",
+                       trControl = ctrl)
+# hyperparameter tuning for alpha and lambda
+
+print(fit_lR_glmnet)
+
+pred4 <- predict(fit_lR_glmnet, data.tst)
+confusionMatrix(table(data.tst[,"Tumor"], pred4))
+
+plot(fit_lR_glmnet)
+
+VarImpLR <- varImp(fit_lR_glmnet)
+VarImpLR <- tail(arrange(VarImpLR$importance, Overall), n =20)
+VarImpLR$Feature <- rownames(VarImpLR)
+VarImpLR$Feature<-gsub("`","",VarImpLR$Feature)
+VarImpLR[with(VarImpLR, order(rev(Overall), Feature)),]
+
+ggplot(data=VarImpLR, aes(x=Overall, y=Feature)) +
+  geom_bar(stat="identity")
+
+
+############ compare accuracy ############ 
+
+resamps <- resamples(list(RF = fit.cv,
+                          SVM = fit.cvSVM,
+                          MNOM = fit.cvMNOM,
+                          LR = fit_lR_glmnet))
+
+# compare RF and SVM and MNOM
+summary(resamps)
+
+
+
 
 # featureElemination <- as.data.frame(best20features)
 # top20logistic$features <- gsub("`","",rownames(top20logistic))
@@ -253,6 +309,6 @@ summary(resamps)
 
 
 
-
+# df_micro filtered from 274 to 10 features (?)
 
 
