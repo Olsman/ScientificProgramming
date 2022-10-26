@@ -61,6 +61,13 @@ df_meta <- df_meta[, !(names(df_meta) %in% remove)]
 remove <- setdiff(colnames(df_micro), colnames(df_meta))  # 12 samples
 df_micro <- df_micro[, !(names(df_micro) %in% remove)]
 
+# remove low feature variances
+install.packages('matrixStats')
+library(matrixStats)
+df_meta = df_meta[rowVars(as.matrix(df_meta)) > 0.01,]
+df_micro = df_micro[rowVars(as.matrix(df_micro)) > 0.01,]
+
+
 # concatenate dataframes - 28 samples remain to train the model
 df_com_f <- rbind(df_micro, df_meta)
 
@@ -94,8 +101,25 @@ ggplot(data = metcat, aes(x = Category, fill = Sex)) +
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
 
-# remove all rows that carry no information - reduce no. of features
-data <- data[, colSums(data != 0) > 0]
+# 
+data$ID <- NULL
+
+# # DIABLO
+# BiocManager::install('mixOmics')
+# library(mixOmics)
+# X <- list(microbiome = data[,1:10], metabolite = data[,11:425])
+# Y <- data[,426]
+# 
+# result.diablo.tcga <- block.plsda(X, Y)
+# plotIndiv(result.diablo.tcga)
+# plotVar(result.diablo.tcga,
+#         var.names = FALSE)
+# 
+# plotDiablo(result.diablo.tcga, ncomp = 1)
+# cimDiablo(result.diablo.tcga, margin=c(8,20))
+# 
+# plotLoadings(result.diablo.tcga, comp = 2, contrib = "max")
+
 
 ########### TRAIN MODEL ##########
 
@@ -252,7 +276,18 @@ summary(resamps)
 # - assess feature stability; Jaccard index(?)
 
 
+# diablo (?)
 
 
+X <- list(metabolites = df_meta, microbiome = df_micro)
+Y <- data.frame(tumor = as.factor(ifelse(metadata$Tumors > 1, "1", "0")),
+                sample = rownames(metadata))
+Y = Y$sample[match(names(df_micro),Y$sample)]
 
+setdiff(rownames(X[["microbiome"]], 
 
+result.diablo.tcga <- block.plsda(X, Y)          
+          
+          
+          
+          
