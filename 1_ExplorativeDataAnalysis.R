@@ -32,6 +32,7 @@ for (pkg in BiocPackages) {
 }
 
 # Import data
+# Go to you own working directory, i.e., where you stored the data
 MetaData <- data.frame(read_excel("./Dataset/MetaTumourData.xlsx"), row.names = "Mouse.ID")
 MetabolitesData <- data.frame(read_excel("./Dataset/StoolMetabolites.xlsx"), check.names = FALSE)
 MicrobiomeData <- data.frame(read_excel("./Dataset/OTUTable.xlsx"), row.names = "ID", check.names = FALSE)
@@ -75,9 +76,9 @@ FatMass <- ggplot(MetaData, aes(x = Category, y = Fat.mass, fill = Category)) +
   geom_violin(width=1, trim = FALSE) +
   geom_boxplot(width=0.1) +
   #geom_jitter(shape=16, position=position_jitter(0.05)) +
-  labs(x = "Category",
+  labs(x = "Condition",
        y = "Fat Mass (g)",
-       title = "Violin Plot: Fat Mass") +
+       title = "Fat Mass per Condition") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -121,7 +122,7 @@ TumorVolume <- ggplot(MetaData, aes(x = Category, y = Tumor.volume, fill = Categ
   #geom_violin(width=1, trim = FALSE) +
   geom_boxplot(width=0.1) +
   geom_jitter(shape=16, position=position_jitter(0.05)) +
-  labs(x = "Category",
+  labs(x = "Condition",
        y = "Tumor Volume",
        title = "Tumor Volume per Condition") +
   theme(plot.title = element_text(hjust = 0.5),
@@ -137,15 +138,11 @@ Tumors <- ggplot(MetaData, aes(x = Category, y = Tumors, fill = Category)) +
   geom_boxplot(width=0.1) +
   geom_jitter(shape=16, position=position_jitter(0.05)) +
   labs(x = "Category",
-       y = "Tumours",
-       title = "Tumor count per Condition") +
+       y = "Count",
+       title = "No. Tumors per Condition") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
 Tumors
-
-
-# Add explorative data analysis per data type
-# assess the imbalance - not neccesary(?) different because of mice
