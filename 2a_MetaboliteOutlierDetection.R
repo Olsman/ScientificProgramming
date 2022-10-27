@@ -10,9 +10,12 @@ DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB101
 # Packages
 # Required CRAN packages:
 CRANpackages <- c("tidyverse", "readxl", "devtools", "ggplot2", "dplyr", "MASS")
+# Package version: tidyverse 1.3.2; readxl 1.4.1; devtools 2.4.5; ggplot2 3.3.6;
+# Package version: dplyr 1.0.10; MASS 7.3-58.1
 
 # Required Bioconductor packages:
 BiocPackages <- c("vioplot", "plotly", "pcaMethods", "limma")
+# Package version: vioplot 0.3.7; plotly 4.10.0; pcaMethods 1.88.0; limma 3.52.4
 
 # Install (if not yet installed) and load the required packages: 
 for (pkg in CRANpackages) {
@@ -179,7 +182,7 @@ ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Category, shape = Sex)) 
   geom_point() +
   labs(x=paste("PC1: ", round(pcaResultsIT@R2[1] * 100, 1), "% of the variance"),
        y=paste("PC2: ", round(pcaResultsIT@R2[2] * 100, 1), "% of the variance"),
-       title = "MMetabolomics data - after outlier removal") +
+       title = "Metabolomics data - after outlier removal") +
   theme(plot.title = element_text(hjust = 0.5),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
