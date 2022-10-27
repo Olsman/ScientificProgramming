@@ -206,3 +206,25 @@ ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = Tumor)) +
 
 # save data with removed outliers 
 write.csv(t(metabolitesFiltered), file = "FilteredMetabolite.csv")
+
+
+# as seen in script 4: thrypthoan might be an interesting metabolite
+# therefore, make PCA coloured by trypthophan concentration
+tryptophan = as.data.frame(t(scaledMetabolites[376,]))
+plotDataITexluded$tryp = tryptophan$`376`[match(rownames(plotDataITexluded), rownames(tryptophan), )]
+
+# PCA
+ggplot(plotDataITexluded, aes(x = PC1, y = PC2, color = tryp, shape = Tumor)) +
+  geom_point() +
+  scale_color_gradient2(low = "blue", mid = "white",
+                        high = "red", space = "Lab" ) +
+  labs(x=paste("PC1: ", round(pcaResultsIT@R2[1] * 100, 1), "% of the variance"),
+       y=paste("PC2: ", round(pcaResultsIT@R2[2] * 100, 1), "% of the variance"),
+       title = "Metabolite PCA - Tryptophan Concentration") +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"))
+
+
