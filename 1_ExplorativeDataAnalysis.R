@@ -15,7 +15,7 @@ CRANpackages <- c("tidyverse", "readxl", "ggplot2", "dplyr")
 
 # Required Bioconductor packages:
 BiocPackages <- c("vioplot", "plotly")
-# Package version: vioplot 0.3.7; 4.10.0
+# Package version: vioplot 0.3.7; plotly 4.10.0
 
 # Install (if not yet installed) and load the required packages: 
 for (pkg in CRANpackages) {
