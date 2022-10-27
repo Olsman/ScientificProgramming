@@ -11,9 +11,11 @@ DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB101
 # Packages
 # Required CRAN packages:
 CRANpackages <- c("tidyverse", "readxl", "ggplot2", "dplyr")
+# Package version: tidyverse 1.3.2; readxl 1.4.1; ggplot2 3.3.6; dplyr 1.0.10
 
 # Required Bioconductor packages:
 BiocPackages <- c("vioplot", "plotly")
+# Package version: vioplot 0.3.7; 4.10.0
 
 # Install (if not yet installed) and load the required packages: 
 for (pkg in CRANpackages) {
