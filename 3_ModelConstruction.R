@@ -9,10 +9,11 @@ DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB101
 
 # Packages
 # Required CRAN packages:
-CRANpackages <- c("tidyverse", "readxl", "devtools", "ggplot2", "dplyr", "caret")
+CRANpackages <- c("tidyverse", "readxl", "devtools", "ggplot2", "dplyr", "caret"
+                  , "matrixStats", "MLeval")
 
 # Required Bioconductor packages:
-BiocPackages <- c("vioplot", "plotly")
+BiocPackages <- c("vioplot", "plotly", "pcaMethods")
 
 # Install (if not yet installed) and load the required packages: 
 for (pkg in CRANpackages) {
@@ -37,10 +38,12 @@ metadata <- data.frame(read_excel("./Dataset/MetaTumourData.xlsx"), row.names = 
 
 # further pre-process data - microbiome
 # inverse hyperbolic sine transformation
+df_micro = df_micro[rowVars(as.matrix(df_micro)) > 0.01,]
 df_micro <- as.data.frame(asinh(df_micro))
 
 # further pre-process data - metabolite
 # probabilistic quotient normalization
+df_meta = df_meta[rowVars(as.matrix(df_meta)) > 0.01,]
 source("PQNfunction.R")
 df_meta <- pqn(as.matrix(df_meta))
 # log2 transformation
@@ -55,12 +58,6 @@ df_meta <- df_meta[, !(names(df_meta) %in% remove)]
 # microbiome v metabolites
 remove <- setdiff(colnames(df_micro), colnames(df_meta))  # 12 samples
 df_micro <- df_micro[, !(names(df_micro) %in% remove)]
-
-# remove low feature variances
-install.packages('matrixStats')
-library(matrixStats)
-df_meta = df_meta[rowVars(as.matrix(df_meta)) > 0.01,]
-df_micro = df_micro[rowVars(as.matrix(df_micro)) > 0.01,]
 
 # concatenate dataframes - 28 samples remain to train the model
 df_com_f <- rbind(df_micro, df_meta)
@@ -79,18 +76,6 @@ data$Tumor  = metcat$TumorB[match(data$ID,metcat$ID)]
 # examine the class imbalance after outlier detection - tumor presence
 sum(metcat$TumorB == 1)
 sum(metcat$TumorB == 0)
-
-# examine the class imbalance after outlier detection 
-ggplot(data = metcat, aes(x = Category, fill = Sex)) +
-  geom_bar(position = position_dodge()) +
-  theme_classic() +
-  labs(title = "Gender per Condition - Concatenated Data", x = "Condition", y = "Count") +
-  scale_fill_manual(values=c("#F8766D", "#00BFC4")) + 
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
 
 # remove data id column 
 data$ID <- NULL
@@ -148,15 +133,13 @@ ctrl <- trainControl(method = "repeatedcv",
                      summaryFunction = twoClassSummary)
 
 # random forest 
+set.seed(12)
 fit.cv <- train(Tumor ~ .,
                 data = data,
                 methods = "rf",
-                metric = "ROC",
                 trControl = ctrl, 
                 tuneLength = 50) 
-
 # examine output
-#install.packages("MLeval")
 MLeval::evalm(fit.cv)
 
 print(fit.cv)
@@ -349,5 +332,64 @@ C = t(M*0 + colMeans(M))  # or `do.call(rbind, rep(list(colMeans(tst)), 3))`
 # substract them and add the grand mean
 M_double_centered = M - R - C + mean(M[])         
 
-# do PCA on scaled data(?)
-          
+# do PCA on scaled data
+pcaResults <- pca(M_double_centered)
+summary(pcaResults)
+
+indexMets <- as.list(rownames(pcaResults@scores))
+sub_df <- metadata %>%
+  filter(rownames(metadata) %in% indexMets)          
+
+# sanity check
+all(rownames(pcaResults@scores) %in% rownames(sub_df))
+
+# data for PCA plots
+plotData <- merge(data.frame(pcaResults@scores), sub_df, by="row.names", all.x=TRUE)
+rownames(plotData) <- plotData$Row.names
+plotData$Row.names <- NULL
+
+# PCA plot - URF
+ggplot(plotData, aes(x = PC1, y = PC2, color = Category, shape = Sex)) +
+  geom_point() +
+  labs(x=paste("PC1: ", round(pcaResults@R2[1] * 100, 1), "% of the variance"),
+       y=paste("PC2: ", round(pcaResults@R2[2] * 100, 1), "% of the variance"),
+       title = "Unsupervised Random Forest PCA - Category") +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"))
+
+# get binary column for tumor presence
+plotData$TumorB = ifelse(plotData$Tumors > 0, "1", "0")
+
+# PCA plot - URF
+ggplot(plotData, aes(x = PC1, y = PC2, color = TumorB, shape = Sex)) +
+  geom_point() +
+  labs(x=paste("PC1: ", round(pcaResults@R2[1] * 100, 1), "% of the variance"),
+       y=paste("PC2: ", round(pcaResults@R2[2] * 100, 1), "% of the variance"),
+       title = "Unsupervised Random Forest PCA - Tumor Presence") +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"))
+
+# proximity
+proxAnn = prox
+rownames(proxAnn) = metadata$Category[match(rownames(proxAnn), rownames(metadata))]
+colnames(proxAnn) = metadata$Category[match(colnames(proxAnn), rownames(metadata))]
+proxAnn = 1-proxAnn
+pheatmap::pheatmap(proxAnn,
+                   main = "Proximity Matrix URF - Category")
+
+# or prox based on tumor presence
+metadata$tumorB = ifelse(metadata$Tumors > 0, "Yes", "No")
+
+# aa
+proxAnnT = prox
+rownames(proxAnnT) = metadata$tumorB[match(rownames(proxAnnT), rownames(metadata))]
+colnames(proxAnnT) = metadata$tumorB[match(colnames(proxAnnT), rownames(metadata))]
+proxAnnT = 1-proxAnnT
+pheatmap::pheatmap(proxAnnT,
+                   main = "Proximity Matrix URF")
