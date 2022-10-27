@@ -81,248 +81,59 @@ sum(metcat$TumorB == 0)
 data$ID <- NULL
 
 
-#########-----------DIABLO/FACTORIZATION - DO NOT RUN----------------############
-# skip this part as i was unable to really use it #
-# BiocManager::install('mixOmics')
-# library(mixOmics)
-X <- list(microbiome = data[,1:10], metabolite = data[,11:425])
-Y <- data[,426]
-result.diablo.tcga <- block.plsda(X, Y)
-plotIndiv(result.diablo.tcga,
-          ind.names = data$category,
-          ellipse = T, 
-          legend = T)
-plotLoadings
-plotVar(result.diablo.tcga,
-        var.names = FALSE)
-plotDiablo(result.diablo.tcga, ncomp = 1)
-cimDiablo(result.diablo.tcga, margin=c(8,20))
-plotLoadings(result.diablo.tcga, comp = 2, contrib = "max")
-
-# or use factorization 
-install.packages("FactoMineR")
-r.mfa <- FactoMineR::MFA(
-  t(rbind(df_meta,df_micro)), # binding the omics types together
-  c(dim(df_meta)[1], dim(df_micro)[1]), # specifying the dimensions of each
-  graph=FALSE)
-
-# first, extract the H and W matrices from the MFA run result
-mfa.h <- as.data.frame(r.mfa$global.pca$ind$coord)
-mfa.w <- r.mfa$quanti.var$coord
-
-# create a dataframe with the H matrix and the CMS label
-mfa_df <- as.data.frame(mfa.h)
-mfa_df$subtype <- metcat$Category[match(rownames(mfa_df), metcat$ID)]
-mfa_df$tumor <- metcat$TumorB[match(rownames(mfa_df), metcat$ID)]
-
-# create the plot
-ggplot2::ggplot(mfa_df, ggplot2::aes(x=Dim.1, y=Dim.2, color=tumor)) +
-  ggplot2::geom_point() + ggplot2::ggtitle("Scatter plot of MFA")
-#########-----------END----------------############
-
-
 ########### TRAIN MODEL ##########
-# cross validation
+# caret has a hard time dealing with 0 and 1, therefore make new names 
 data$Tumor <- make.names(data$Tumor, unique = FALSE, allow_ = TRUE)
 
-ctrl <- trainControl(method = "repeatedcv",
-                     number = 10,
-                     repeats = 3,
-                     classProbs = T,
-                     savePredictions = T,
-                     summaryFunction = twoClassSummary)
+# cross validation
+fitControl1 <- trainControl(
+  method = 'LOOCV',                
+  number = 1,                     
+  savePredictions = T,        
+  classProbs = T ,
+  seed = as.list(rep(1,425)),                
+  summaryFunction=twoClassSummary 
+) 
 
-# random forest 
-set.seed(12)
-fit.cv <- train(Tumor ~ .,
+# model - RF
+fit.cv1 <- train(Tumor ~ .,
                 data = data,
                 methods = "rf",
-                trControl = ctrl, 
-                tuneLength = 50) 
-# examine output
-MLeval::evalm(fit.cv)
+                trControl = fitControl1,
+                tuneGrid = data.frame(mtry=3)) 
 
-print(fit.cv)
-plot(fit.cv)
-fit.cv$results
+# get model output
+fit.cv1
+summary(fit.cv1)
 
-# select most important features
-VarImp <- varImp(fit.cv)
+# plot the ROC curve
+ROC = MLeval::evalm(fit.cv1)
+
+# feature importance from fitted model
+VarImp <- varImp(fit.cv1)
 VarImp <- arrange(VarImp$importance, Overall)
 featuresRF <- tail(VarImp, n = 20)
 
 
-########### SVM ###########3
-# linear kernel - try others 
-fit.cvSVM <- train(Tumor ~ .,
-                data = data.trn,
-                methods = "svmLinearWeights2",
-                trControl = ctrl,
-                tuneLength = 50) # only 44? maybe only 44 features unique among samples
-
-# examine output
-print(fit.cvSVM)
-plot(fit.cvSVM)
-fit.cvSVM$results
-
-# examine accuracy of the SVM model
-pred2 <- predict(fit.cvSVM, data.tst)
-confusionMatrix(table(data.tst[,"Tumor"], pred2))
-
-# select important features
-VarImp2 <- varImp(fit.cvSVM)
-VarImp2 <- arrange(VarImp2$importance, Overall)
-featuresSVM <- tail(VarImp2, n = 20)
-
-
-### multinom - can it actually be used for 2 classes; look it up pls
-fit.cvMNOM <- train(Tumor ~ .,
-             data = data.trn,
-             method = "multinom",
-             trControl = ctrl)
-
-# examine output
-print(fit.cvMNOM)
-plot(fit.cvMNOM)
-fit.cvMNOM$results
-
-# examine accuracy of the multinom model
-pred3 <- predict(fit.cvMNOM, data.tst)
-confusionMatrix(table(data.tst[,"Tumor"], pred3))
-
-# select important features
-VarImp3 <- varImp(fit.cvMNOM)
-VarImp3 <- arrange(VarImp3$importance, Overall)
-featuresMNOM <- tail(VarImp3, n = 20)
-
-
-############ compare accuracy ############ 
-
-resamps <- resamples(list(RF = fit.cv,
-                          SVM = fit.cvSVM,
-                          MNOM = fit.cvMNOM))
-
-# compare RF and SVM and MNOM
-summary(resamps)
-
-
-# getModelInfo()$mnom$parameters
-
-
-##### recursive feature elemination 
-# i will probably not do this anymore
-
-# set.seed(123)
-# rfeCtrl <- rfeControl(functions = rfFuncs,
-#                       method = "cv",
-#                       verbose = FALSE)
-# 
-# # proportion of subsets
-# set.seed(123)
-# subsets <- c(10, 20, 30, 40, 50, 60)
-# 
-# drop <- c("Tumor")
-# data.trn2 <- data.trn[,!(names(data.trn) %in% drop)]
-# 
-# rfProfile2 <- rfe(x = data.trn2, 
-#                  y = data.trn$Tumor, 
-#                  sizes = subsets,
-#                  rfeControl = rfeCtrl)
-# 
-# rfProfile2
-# 
-# best20features <- predictors(rfProfile2)
-
-# now select these features to train the new model? RF?
-
-
-
-
-##################
-# with response as a integer (0/1)
-# fit_logistic <- train(Tumor ~.,
-#                       data = data.trn,
-#                       method = "glmnet",
-#                       trControl = ctrl,
-#                       family = "binomial")
-# print(fit_logistic)
-# pred4 <- predict(fit_logistic, data.tst)
-# confusionMatrix(table(data.tst[,"Tumor"], pred4))
-# 
-# VarImp4 <- varImp(fit_logistic)
-# VarImp4 <- VarImp4$importance
-# 
-# VarImp4 <- arrange(VarImp4, Overall)
-
-# featureElemination <- as.data.frame(best20features)
-# top20logistic$features <- gsub("`","",rownames(top20logistic))
-# rownames(top20rf) <- top20rf$`rownames(top10)`
-# top20rf$features <- gsub("`","",rownames(top20rf))
-
-
-
-# TO DO:
-# - PCA concatenated data
-# - assess different model
-# - optimize model parameters
-# - model fusion; assess mutual and complementary aspects of each model
-# - assess feature stability; Jaccard index(?)
-          
-
-# 1. Random forest
-data$Tumor <- make.names(data$Tumor, unique = FALSE, allow_ = TRUE)
-
-# cross val
-ctrl <- trainControl(method = "repeatedcv",
-                     number = 10,
-                     repeats = 5,
-                     classProbs = T,
-                     savePredictions = T)
-rfGrid = expand.grid(mtry = 1:100)
-fit.cv <- train(Tumor ~ .,
-                data = data,
-                methods = "rf",
-                trControl = ctrl,
-                tuneGrid = rfGrid) 
-fit.cv
-summary(fit.cv)
-x <- MLeval::evalm(fit.cv)
-
-
-# 2. gradient boosting
-gbmGrid <-  expand.grid(interaction.depth = 10,
-                        n.trees = 18000,                                          
-                        shrinkage = 0.01,                                         
-                        n.minobsinnode = 4) 
-
-# Build using a gradient boosted machine
-set.seed(5627)
-gbm <- train(Tumor ~ .,
-             data = data,
-             method = "gbm",
-             metric = "ROC",
-             tuneGrid = gbmGrid,
-             verbose = FALSE,
-             trControl = ctrl) 
-gbm
-summary(gbm)
-x <- MLeval::evalm(gbm)
-
-
 # URF
-myColRamp <- colorRampPalette(colors = c("#25591f", "#818c3c"))
-
 install.packages("randomForest")
 library(randomForest)
 install.packages("cluster")
 library(cluster)
 dat <- data[,-ncol(data)]
 
-rf2 <- randomForest(x = dat, mtry = 25, ntree = 2000, proximity = TRUE)
+# unsupervised random forest
+rf2 <- randomForest(x = dat, mtry = 75, ntree = 2000, proximity = TRUE)
 rf2
 prox <- rf2$proximity
 
-# example data
+# feature importance URF
+VarImpURF <- as.data.frame(rf2[["importance"]])
+VarImpURF = VarImpURF %>%                                      
+  arrange(desc(MeanDecreaseGini))
+featuresURF <- head(VarImpURF, n = 20)
+
+# save proximity in new variable
 M = prox
 
 # compute the row-wise and column-wise mean matrices
@@ -336,6 +147,7 @@ M_double_centered = M - R - C + mean(M[])
 pcaResults <- pca(M_double_centered)
 summary(pcaResults)
 
+# obtain metadata
 indexMets <- as.list(rownames(pcaResults@scores))
 sub_df <- metadata %>%
   filter(rownames(metadata) %in% indexMets)          
@@ -375,21 +187,65 @@ ggplot(plotData, aes(x = PC1, y = PC2, color = TumorB, shape = Sex)) +
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
 
-# proximity
+# similarity matrix based on condition
 proxAnn = prox
 rownames(proxAnn) = metadata$Category[match(rownames(proxAnn), rownames(metadata))]
 colnames(proxAnn) = metadata$Category[match(colnames(proxAnn), rownames(metadata))]
 proxAnn = 1-proxAnn
 pheatmap::pheatmap(proxAnn,
-                   main = "Proximity Matrix URF - Category")
+                   main = "Similarity URF - Condition")
 
-# or prox based on tumor presence
+# get new variable yes if there is a tumor and no if there is not a tumor
 metadata$tumorB = ifelse(metadata$Tumors > 0, "Yes", "No")
 
-# aa
+# similarity matrix based on tumor presence
 proxAnnT = prox
 rownames(proxAnnT) = metadata$tumorB[match(rownames(proxAnnT), rownames(metadata))]
 colnames(proxAnnT) = metadata$tumorB[match(colnames(proxAnnT), rownames(metadata))]
 proxAnnT = 1-proxAnnT
 pheatmap::pheatmap(proxAnnT,
-                   main = "Proximity Matrix URF")
+                   main = "Similarity Matrix URF - Tumor Presence")
+
+
+# examine features both present in RF and URF
+intersect = intersect(rownames(featuresRF), rownames(featuresURF))
+# only trypthophan intersect
+
+s#########-----------DIABLO/FACTORIZATION - DO NOT RUN----------------############
+# skip this part as i was unable to really use it #
+# BiocManager::install('mixOmics')
+# library(mixOmics)
+X <- list(microbiome = data[,1:10], metabolite = data[,11:425])
+Y <- data[,426]
+result.diablo.tcga <- block.plsda(X, Y)
+plotIndiv(result.diablo.tcga,
+          ind.names = data$category,
+          ellipse = T, 
+          legend = T)
+plotLoadings
+plotVar(result.diablo.tcga,
+        var.names = FALSE)
+plotDiablo(result.diablo.tcga, ncomp = 1)
+cimDiablo(result.diablo.tcga, margin=c(8,20))
+plotLoadings(result.diablo.tcga, comp = 2, contrib = "max")
+
+# or use factorization 
+install.packages("FactoMineR")
+r.mfa <- FactoMineR::MFA(
+  t(rbind(df_meta,df_micro)), # binding the omics types together
+  c(dim(df_meta)[1], dim(df_micro)[1]), # specifying the dimensions of each
+  graph=FALSE)
+
+# first, extract the H and W matrices from the MFA run result
+mfa.h <- as.data.frame(r.mfa$global.pca$ind$coord)
+mfa.w <- r.mfa$quanti.var$coord
+
+# create a dataframe with the H matrix and the CMS label
+mfa_df <- as.data.frame(mfa.h)
+mfa_df$subtype <- metcat$Category[match(rownames(mfa_df), metcat$ID)]
+mfa_df$tumor <- metcat$TumorB[match(rownames(mfa_df), metcat$ID)]
+
+# create the plot
+ggplot2::ggplot(mfa_df, ggplot2::aes(x=Dim.1, y=Dim.2, color=tumor)) +
+  ggplot2::geom_point() + ggplot2::ggtitle("Scatter plot of MFA")
+#########-----------END----------------############
