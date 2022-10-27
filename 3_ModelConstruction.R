@@ -3,11 +3,6 @@
 # Rosan Olsman
 
 
-#### --------------- WORK IN PROGRESS --------------- ####
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
-
-
-
 ########## Import and examine data ########## 
 # go to your personal working directory - set working directory
 DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB1015 Scientific Programming")
@@ -67,12 +62,8 @@ library(matrixStats)
 df_meta = df_meta[rowVars(as.matrix(df_meta)) > 0.01,]
 df_micro = df_micro[rowVars(as.matrix(df_micro)) > 0.01,]
 
-
 # concatenate dataframes - 28 samples remain to train the model
 df_com_f <- rbind(df_micro, df_meta)
-
-# install.packages("rpart.plot")
-# library(rpart.plot)
 
 # store data and metadata for concatenated datatypes
 data <- as.data.frame(t(df_com_f))
@@ -82,7 +73,7 @@ metcat <- metadata %>%
 metcat$ID <- rownames(metcat)
 
 # define new column containing binary classification of tumor presence
-metcat$TumorB <- as.factor(ifelse(metcat$Tumors > 0, "1", "0"))
+metcat$TumorB <- ifelse(metcat$Tumors > 0, "1", "0")
 data$Tumor  = metcat$TumorB[match(data$ID,metcat$ID)]
 
 # examine the class imbalance after outlier detection - tumor presence
@@ -101,57 +92,76 @@ ggplot(data = metcat, aes(x = Category, fill = Sex)) +
         panel.background = element_blank(),
         axis.line = element_line(colour = "black"))
 
-# 
+# remove data id column 
 data$ID <- NULL
 
-# # DIABLO
+
+#########-----------DIABLO/FACTORIZATION - DO NOT RUN----------------############
+# skip this part as i was unable to really use it #
 # BiocManager::install('mixOmics')
 # library(mixOmics)
-# X <- list(microbiome = data[,1:10], metabolite = data[,11:425])
-# Y <- data[,426]
-# 
-# result.diablo.tcga <- block.plsda(X, Y)
-# plotIndiv(result.diablo.tcga)
-# plotVar(result.diablo.tcga,
-#         var.names = FALSE)
-# 
-# plotDiablo(result.diablo.tcga, ncomp = 1)
-# cimDiablo(result.diablo.tcga, margin=c(8,20))
-# 
-# plotLoadings(result.diablo.tcga, comp = 2, contrib = "max")
+X <- list(microbiome = data[,1:10], metabolite = data[,11:425])
+Y <- data[,426]
+result.diablo.tcga <- block.plsda(X, Y)
+plotIndiv(result.diablo.tcga,
+          ind.names = data$category,
+          ellipse = T, 
+          legend = T)
+plotLoadings
+plotVar(result.diablo.tcga,
+        var.names = FALSE)
+plotDiablo(result.diablo.tcga, ncomp = 1)
+cimDiablo(result.diablo.tcga, margin=c(8,20))
+plotLoadings(result.diablo.tcga, comp = 2, contrib = "max")
+
+# or use factorization 
+install.packages("FactoMineR")
+r.mfa <- FactoMineR::MFA(
+  t(rbind(df_meta,df_micro)), # binding the omics types together
+  c(dim(df_meta)[1], dim(df_micro)[1]), # specifying the dimensions of each
+  graph=FALSE)
+
+# first, extract the H and W matrices from the MFA run result
+mfa.h <- as.data.frame(r.mfa$global.pca$ind$coord)
+mfa.w <- r.mfa$quanti.var$coord
+
+# create a dataframe with the H matrix and the CMS label
+mfa_df <- as.data.frame(mfa.h)
+mfa_df$subtype <- metcat$Category[match(rownames(mfa_df), metcat$ID)]
+mfa_df$tumor <- metcat$TumorB[match(rownames(mfa_df), metcat$ID)]
+
+# create the plot
+ggplot2::ggplot(mfa_df, ggplot2::aes(x=Dim.1, y=Dim.2, color=tumor)) +
+  ggplot2::geom_point() + ggplot2::ggtitle("Scatter plot of MFA")
+#########-----------END----------------############
 
 
 ########### TRAIN MODEL ##########
-
-# divide train and test set
-set.seed(12)
-train <- createDataPartition(data[,"Tumor"],
-                             p = 0.8,
-                             list = FALSE)
-data.trn <- data[train,]
-data.trn <- select(data.trn, -ID)
-data.tst <- data[-train,]
-
 # cross validation
+data$Tumor <- make.names(data$Tumor, unique = FALSE, allow_ = TRUE)
+
 ctrl <- trainControl(method = "repeatedcv",
                      number = 10,
-                     repeats = 3)
+                     repeats = 3,
+                     classProbs = T,
+                     savePredictions = T,
+                     summaryFunction = twoClassSummary)
 
-# random forest
+# random forest 
 fit.cv <- train(Tumor ~ .,
-                data = data.trn,
+                data = data,
                 methods = "rf",
-                trControl = ctrl,
+                metric = "ROC",
+                trControl = ctrl, 
                 tuneLength = 50) 
 
 # examine output
+#install.packages("MLeval")
+MLeval::evalm(fit.cv)
+
 print(fit.cv)
 plot(fit.cv)
 fit.cv$results
-
-# examine accuracy of the RF model
-pred <- predict(fit.cv, data.tst)
-confusionMatrix(table(data.tst[,"Tumor"], pred))
 
 # select most important features
 VarImp <- varImp(fit.cv)
@@ -274,20 +284,70 @@ summary(resamps)
 # - optimize model parameters
 # - model fusion; assess mutual and complementary aspects of each model
 # - assess feature stability; Jaccard index(?)
-
-
-# diablo (?)
-
-
-X <- list(metabolites = df_meta, microbiome = df_micro)
-Y <- data.frame(tumor = as.factor(ifelse(metadata$Tumors > 1, "1", "0")),
-                sample = rownames(metadata))
-Y = Y$sample[match(names(df_micro),Y$sample)]
-
-setdiff(rownames(X[["microbiome"]], 
-
-result.diablo.tcga <- block.plsda(X, Y)          
           
-          
-          
+
+# 1. Random forest
+data$Tumor <- make.names(data$Tumor, unique = FALSE, allow_ = TRUE)
+
+# cross val
+ctrl <- trainControl(method = "repeatedcv",
+                     number = 10,
+                     repeats = 5,
+                     classProbs = T,
+                     savePredictions = T)
+rfGrid = expand.grid(mtry = 1:100)
+fit.cv <- train(Tumor ~ .,
+                data = data,
+                methods = "rf",
+                trControl = ctrl,
+                tuneGrid = rfGrid) 
+fit.cv
+summary(fit.cv)
+x <- MLeval::evalm(fit.cv)
+
+
+# 2. gradient boosting
+gbmGrid <-  expand.grid(interaction.depth = 10,
+                        n.trees = 18000,                                          
+                        shrinkage = 0.01,                                         
+                        n.minobsinnode = 4) 
+
+# Build using a gradient boosted machine
+set.seed(5627)
+gbm <- train(Tumor ~ .,
+             data = data,
+             method = "gbm",
+             metric = "ROC",
+             tuneGrid = gbmGrid,
+             verbose = FALSE,
+             trControl = ctrl) 
+gbm
+summary(gbm)
+x <- MLeval::evalm(gbm)
+
+
+# URF
+myColRamp <- colorRampPalette(colors = c("#25591f", "#818c3c"))
+
+install.packages("randomForest")
+library(randomForest)
+install.packages("cluster")
+library(cluster)
+dat <- data[,-ncol(data)]
+
+rf2 <- randomForest(x = dat, mtry = 25, ntree = 2000, proximity = TRUE)
+rf2
+prox <- rf2$proximity
+
+# example data
+M = prox
+
+# compute the row-wise and column-wise mean matrices
+R = M*0 + rowMeans(M)  # or `do.call(cbind, rep(list(rowMeans(tst)), 3))`
+C = t(M*0 + colMeans(M))  # or `do.call(rbind, rep(list(colMeans(tst)), 3))`
+
+# substract them and add the grand mean
+M_double_centered = M - R - C + mean(M[])         
+
+# do PCA on scaled data(?)
           
