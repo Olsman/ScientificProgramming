@@ -10,9 +10,12 @@ DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB101
 # Packages
 # Required CRAN packages:
 CRANpackages <- c("tidyverse", "readxl", "devtools", "ggplot2", "dplyr", "MASS")
+# Package version: tidyverse 1.3.2; readxl 1.4.1; devtools 2.4.5; ggplot2 3.3.6;
+# Package version: dplyr 1.0.10; MASS 7.3-58.1
 
 # Required Bioconductor packages:
 BiocPackages <- c("vioplot", "plotly", "pcaMethods", "limma")
+# Package version: vioplot 0.3.7; plotly 4.10.0; pcaMethods 1.88.0; limma 3.52.4
 
 # Install (if not yet installed) and load the required packages: 
 for (pkg in CRANpackages) {
@@ -53,11 +56,11 @@ row.names(NumMicrobiome) <- rownames(MicrobiomeData)
 NumMicrobiome <- as.matrix(NumMicrobiome)
 
 # download vegan here, otherwise you will get an error - conflicting packages
-install.packages("vegan")
+install.packages("vegan") # package version: 2.6.4
 library(vegan)
 
 # create NMDS plot using bray as the distance method
-set.seed(123)
+set.seed(123) # reproducibility
 nmds = metaMDS(as.matrix(t(NumMicrobiome)), distance = "bray")
 nmds     # stress: 0.09, which is ok
 
@@ -83,14 +86,11 @@ rownames(data.scores) <- data.scores$ID
 # plot NMDS plot
 ggplot(data.scores, aes(x = NMDS1, y = NMDS2, color = Category)) + 
   geom_point() +
-  theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
-        axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
-        legend.text = element_text(size = 12, face ="bold", colour ="black"), 
-        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
-        axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
-        legend.title = element_text(size = 14, colour = "black", face = "bold"), 
-        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
-        legend.key=element_blank()) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black")) +
   labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome data - before outlier removal") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 
@@ -120,28 +120,22 @@ sum(plotDataMicrobiome$Outlier == "Outlier")
 ggplot(plotDataMicrobiome, aes(x = NMDS1, y = NMDS2, color = AnomalyScore, shape = Category)) + 
   geom_point() +
   scale_color_gradientn(colours = rainbow(5)) +
-  theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
-        axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
-        legend.text = element_text(size = 12, face ="bold", colour ="black"), 
-        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
-        axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
-        legend.title = element_text(size = 14, colour = "black", face = "bold"), 
-        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
-        legend.key=element_blank()) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black")) +
   labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome data - Anomaly Score") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 
 # NMDS plot; samples coloured if they are considered to be an outlier
 ggplot(plotDataMicrobiome, aes(x = NMDS1, y = NMDS2, color = Outlier)) + 
   geom_point() +
-  theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
-        axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
-        legend.text = element_text(size = 12, face ="bold", colour ="black"), 
-        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
-        axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
-        legend.title = element_text(size = 14, colour = "black", face = "bold"), 
-        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
-        legend.key=element_blank()) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black")) +
   labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome data - Outliers") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
 
@@ -190,14 +184,11 @@ rownames(data.scoresFiltered) <- data.scoresFiltered$ID
 # NMDS plot without the outliers
 ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Category)) + 
   geom_point() +
-  theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
-        axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
-        legend.text = element_text(size = 12, face ="bold", colour ="black"), 
-        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
-        axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
-        legend.title = element_text(size = 14, colour = "black", face = "bold"), 
-        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
-        legend.key=element_blank()) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black")) +
   labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome data - after outlier removal") +
   annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.08")
 
@@ -208,16 +199,13 @@ data.scoresFiltered$Tumor <- as.factor(ifelse(data.scoresFiltered$Tumor > 0, "Tu
 # NMDS coloured for tumor yes/no
 ggplot(data.scoresFiltered, aes(x = NMDS1, y = NMDS2, color = Tumor)) + 
   geom_point() +
-  theme(axis.text.y = element_text(colour = "black", size = 12, face = "bold"), 
-        axis.text.x = element_text(colour = "black", face = "bold", size = 12), 
-        legend.text = element_text(size = 12, face ="bold", colour ="black"), 
-        legend.position = "right", axis.title.y = element_text(face = "bold", size = 14), 
-        axis.title.x = element_text(face = "bold", size = 14, colour = "black"), 
-        legend.title = element_text(size = 14, colour = "black", face = "bold"), 
-        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
-        legend.key=element_blank()) + 
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black")) +
   labs(x = "NMDS1", colour = "Category", y = "NMDS2", title = "Microbiome NMDS - Tumor Presence") +
-  annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.09")
+  annotate("text", x = -0.6, y = 0.5, label = "Stress = 0.08")
 # no clear seperation visible in tumor presence after outlier removal
 
 # save data without the outliers
