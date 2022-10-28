@@ -36,6 +36,10 @@ df_micro <- read.csv("FilteredMicrobiome.csv", header = TRUE, row.names = 1, sep
 df_meta <- read.csv("FilteredMetabolite.csv", header = TRUE, row.names = 1, sep = ",", check.names = FALSE) # Metabolomics rows:columns -> metabolites:samples
 metadata <- data.frame(read_excel("./Dataset/MetaTumourData.xlsx"), row.names = "Mouse.ID")
 
+par(mar=c(1,1,1,1))
+hist(as.matrix(df_meta))
+hist(as.matrix(df_micro))
+
 # further pre-process data - microbiome
 # inverse hyperbolic sine transformation
 df_micro = df_micro[rowVars(as.matrix(df_micro)) > 0.01,]
@@ -50,6 +54,10 @@ df_meta <- pqn(as.matrix(df_meta))
 df_meta <- log2(df_meta)
 # scaling
 df_meta <- as.data.frame((df_meta - rowMeans(df_meta))/(apply(df_meta,1,sd)))
+
+par(mar=c(1,1,1,1))
+hist(as.matrix(df_meta))
+hist(as.matrix(df_micro))
 
 # removing samples that are not present in both datasets
 # metabolites v microbiome
