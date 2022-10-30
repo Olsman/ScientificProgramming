@@ -10,10 +10,14 @@ DIR <- setwd("/Users/rosanolsmanx/Documents/Maastricht University/Courses/MSB101
 # Packages
 # Required CRAN packages:
 CRANpackages <- c("tidyverse", "readxl", "devtools", "ggplot2", "dplyr", "caret"
-                  , "matrixStats", "MLeval")
+                  , "matrixStats", "MLeval", "randomForest", "cluster", "pheatmap")
+# Package version: tidyverse 1.3.2; readxl 1.4.1; devtools 2.4.5; ggplot2 3.3.6;
+# Package version: dplyr 1.0.10; caret 6.0-93; matrixStats 0.62.0; MLeval 0.3;
+# Package version: randomForest 4.7-1.1; cluster 2.1.4; pheatmap 1.0.12
 
 # Required Bioconductor packages:
 BiocPackages <- c("vioplot", "plotly", "pcaMethods")
+# Package version: vioplot 0.3.7; plotly 4.10.0; pcaMethods 1.88.0
 
 # Install (if not yet installed) and load the required packages: 
 for (pkg in CRANpackages) {
@@ -36,9 +40,10 @@ df_micro <- read.csv("FilteredMicrobiome.csv", header = TRUE, row.names = 1, sep
 df_meta <- read.csv("FilteredMetabolite.csv", header = TRUE, row.names = 1, sep = ",", check.names = FALSE) # Metabolomics rows:columns -> metabolites:samples
 metadata <- data.frame(read_excel("./Dataset/MetaTumourData.xlsx"), row.names = "Mouse.ID")
 
-par(mar=c(1,1,1,1))
-hist(as.matrix(df_meta))
-hist(as.matrix(df_micro))
+# examine distribution of the data
+par(mar=c(2,2,2,2))
+hist(as.matrix(df_meta), breaks = 50)
+hist(as.matrix(df_micro), breaks = 50)
 
 # further pre-process data - microbiome
 # inverse hyperbolic sine transformation
@@ -55,17 +60,19 @@ df_meta <- log2(df_meta)
 # scaling
 df_meta <- as.data.frame((df_meta - rowMeans(df_meta))/(apply(df_meta,1,sd)))
 
-par(mar=c(1,1,1,1))
-hist(as.matrix(df_meta))
-hist(as.matrix(df_micro))
+# examine distribution
+par(mar=c(2,2,2,2))
+hist(as.matrix(df_meta), breaks = 50)
+hist(as.matrix(df_micro), breaks = 50)
+# looks good for metabolomics data, microbiome not so much
 
 # removing samples that are not present in both datasets
 # metabolites v microbiome
-remove <- setdiff(colnames(df_meta), colnames(df_micro)) # only one sample
-df_meta <- df_meta[, !(names(df_meta) %in% remove)]
+remove1 <- setdiff(colnames(df_meta), colnames(df_micro)) # only one sample
+df_meta <- df_meta[, !(names(df_meta) %in% remove1)]
 # microbiome v metabolites
-remove <- setdiff(colnames(df_micro), colnames(df_meta))  # 12 samples
-df_micro <- df_micro[, !(names(df_micro) %in% remove)]
+remove2 <- setdiff(colnames(df_micro), colnames(df_meta))  # 12 samples
+df_micro <- df_micro[, !(names(df_micro) %in% remove2)]
 
 # concatenate dataframes - 28 samples remain to train the model
 df_com_f <- rbind(df_micro, df_meta)
@@ -90,139 +97,201 @@ data$ID <- NULL
 
 
 ########### TRAIN MODEL ##########
-# caret has a hard time dealing with 0 and 1, therefore make new names 
+#####---------- Random Forest ----------#####
+# get right names otherwise caret cannot work with it
 data$Tumor <- make.names(data$Tumor, unique = FALSE, allow_ = TRUE)
 
+# grid search for mtry
+tuneGrid <- expand.grid(.mtry = c(1 : 10))
+
 # cross validation
-fitControl1 <- trainControl(
-  method = 'LOOCV',                
-  number = 1,                     
-  savePredictions = T,        
-  classProbs = T ,
-  seed = as.list(rep(1,425)),                
-  summaryFunction=twoClassSummary 
-) 
+set.seed(12)
+ctrl <- trainControl(method = "repeatedcv",
+                     number = 10,
+                     repeats = 5,
+                     search = 'grid',
+                     classProbs = TRUE,
+                     savePredictions = "final",
+                     summaryFunction = twoClassSummary) #in most cases a better summary for two class problems 
 
-# model - RF
-fit.cv1 <- train(Tumor ~ .,
-                data = data,
-                methods = "rf",
-                trControl = fitControl1,
-                tuneGrid = data.frame(mtry=3)) 
+# also ook at ntrees and nodesize
+ntrees <- c(500, 1000)    
+nodesize <- c(1, 5)
 
-# get model output
-fit.cv1
-summary(fit.cv1)
+# save hyperparameter values in params
+params <- expand.grid(ntrees = ntrees,
+                      nodesize = nodesize)
 
-# plot the ROC curve
-ROC = MLeval::evalm(fit.cv1)
+# to save output
+store_maxnode <- vector("list", nrow(params))
 
-# feature importance from fitted model
-VarImp <- varImp(fit.cv1)
-VarImp <- arrange(VarImp$importance, Overall)
-featuresRF <- tail(VarImp, n = 20)
+# RF forest with hyperparameter tuning
+for(i in 1:nrow(params)){
+  nodesize <- params[i,2]
+  ntree <- params[i,1]
+  set.seed(65)
+  rf_model <- train(Tumor~.,
+                    data = data,
+                    method = "rf",
+                    importance=TRUE,
+                    metric = "ROC",
+                    tuneGrid = tuneGrid,
+                    trControl = ctrl,
+                    ntree = ntree,
+                    nodesize = nodesize)
+  store_maxnode[[i]] <- rf_model # save output of each iteration
+}
+
+# save output
+names(store_maxnode) <- paste("ntrees:", params$ntrees,
+                              "nodesize:", params$nodesize)
+results_mtry <- resamples(store_maxnode)
+
+# examine RF output
+summary(results_mtry)
+lapply(store_maxnode, function(x) x$best)
+lapply(store_maxnode, function(x) x$results[x$results$ROC == max(x$results$ROC),])
+# first model, i.e., ntrees = 500, nodesize = 1, and mtry = 5 gives an ROC of 0.715
 
 
-# URF
-install.packages("randomForest")
-library(randomForest)
-install.packages("cluster")
-library(cluster)
+#####---------- Elastic net ----------#####
+set.seed(12)
+model_en <- train(Tumor~.,
+            data = data,
+            method = "glmnet",
+            metric = "ROC",
+            tuneGrid = expand.grid(alpha = seq(0,1,length=10),
+                                  lambda = seq(0.0001,0.2,length=5)),
+            trControl= ctrl)
+# examine model output for varying values of both alpha and lambda
+model_en
+mean(model_en$resample$ROC)
+
+# plot model output
+plot(model_en, main = "Elastic Net Regression")
+# best model is obtained from alpha = 0.22222 and lambda = 0.10005
+# ROC = 0.715
+
+
+#####---------- Unsupervised RF ----------#####
 dat <- data[,-ncol(data)]
+mtry <- c(1,5,10)
+paramsURF <- expand.grid(ntrees = ntrees,
+                         nodesize = nodesize,
+                         mtry = mtry)
+
+store_maxnodeURF <- vector("list", nrow(paramsURF))
+store_proximities <- vector("list", nrow(paramsURF))
 
 # unsupervised random forest
-rf2 <- randomForest(x = dat, mtry = 75, ntree = 2000, proximity = TRUE)
-rf2
-prox <- rf2$proximity
-
-# feature importance URF
-VarImpURF <- as.data.frame(rf2[["importance"]])
-VarImpURF = VarImpURF %>%                                      
-  arrange(desc(MeanDecreaseGini))
-featuresURF <- head(VarImpURF, n = 20)
+for(i in 1:nrow(paramsURF)){
+  nodesize <- paramsURF[i,2]
+  ntree <- paramsURF[i,1]
+  mtry <- paramsURF[i,3]
+  set.seed(12)
+  urf_model <- randomForest(x = dat,
+                            mtry = mtry,
+                            ntree = ntree,
+                            nodesize = nodesize,
+                            proximity = TRUE)
+  store_maxnodeURF[[i]] <- urf_model
+  store_proximities[[i]] <- urf_model$proximity
+}
 
 # save proximity in new variable
-M = prox
+for(i in 1:nrow(paramsURF)){
+  
+  # save proximitiy matrix
+  M = store_proximities[[i]]
+  
+  # compute the row-wise and column-wise mean matrices
+  R = M*0 + rowMeans(M)
+  C = t(M*0 + colMeans(M))  
+  
+  # substract them and add the grand mean
+  M_double_centered = M - R - C + mean(M[])
+  
+  # do PCA on scaled data
+  pcaResults <- pca(M_double_centered)
+  summary(pcaResults)
+  
+  # obtain metadata
+  indexMets <- as.list(rownames(pcaResults@scores))
+  sub_df <- metadata %>%
+    filter(rownames(metadata) %in% indexMets)          
+  
+  # sanity check
+  all(rownames(pcaResults@scores) %in% rownames(sub_df))
+  
+  # data for PCA plots
+  plotData <- merge(data.frame(pcaResults@scores), sub_df, by="row.names", all.x=TRUE)
+  rownames(plotData) <- plotData$Row.names
+  plotData$Row.names <- NULL
+  
+  # PCA plot - URF
+  plots = list()
+  
+  plots[[i]] = ggplot(plotData, aes(x = PC1, y = PC2, color = Category, shape = Sex)) +
+    geom_point() +
+    labs(x=paste("PC1: ", round(pcaResults@R2[1] * 100, 1), "% of the variance"),
+         y=paste("PC2: ", round(pcaResults@R2[2] * 100, 1), "% of the variance"),
+         title = paste("Unsupervised Random Forest PCA - Category", rownames(paramsURF[i,]))) +
+    theme(plot.title = element_text(hjust = 0.5),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          axis.line = element_line(colour = "black"))
+  
+  print(plots[[i]])
+  
+  # get binary column for tumor presence
+  plotData$TumorB = ifelse(plotData$Tumors > 0, "1", "0")
+  
+  plots2 <- list()
+  
+  # PCA plot - URF
+  plots2[[i]] <- ggplot(plotData, aes(x = PC1, y = PC2, color = TumorB, shape = Sex)) +
+    geom_point() +
+    labs(x=paste("PC1: ", round(pcaResults@R2[1] * 100, 1), "% of the variance"),
+         y=paste("PC2: ", round(pcaResults@R2[2] * 100, 1), "% of the variance"),
+         title = paste("Unsupervised Random Forest PCA - Tumor Presence", rownames(paramsURF[i,]))) +
+    theme(plot.title = element_text(hjust = 0.5),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_blank(),
+          axis.line = element_line(colour = "black"))
+  
+  print(plots2[[i]])
+}
 
-# compute the row-wise and column-wise mean matrices
-R = M*0 + rowMeans(M)  # or `do.call(cbind, rep(list(rowMeans(tst)), 3))`
-C = t(M*0 + colMeans(M))  # or `do.call(rbind, rep(list(colMeans(tst)), 3))`
+# proximity 4 best: 1000 ntrees, 1 nodesize, and mtry 5.
 
-# substract them and add the grand mean
-M_double_centered = M - R - C + mean(M[])         
-
-# do PCA on scaled data
-pcaResults <- pca(M_double_centered)
-summary(pcaResults)
-
-# obtain metadata
-indexMets <- as.list(rownames(pcaResults@scores))
-sub_df <- metadata %>%
-  filter(rownames(metadata) %in% indexMets)          
-
-# sanity check
-all(rownames(pcaResults@scores) %in% rownames(sub_df))
-
-# data for PCA plots
-plotData <- merge(data.frame(pcaResults@scores), sub_df, by="row.names", all.x=TRUE)
-rownames(plotData) <- plotData$Row.names
-plotData$Row.names <- NULL
-
-# PCA plot - URF
-ggplot(plotData, aes(x = PC1, y = PC2, color = Category, shape = Sex)) +
-  geom_point() +
-  labs(x=paste("PC1: ", round(pcaResults@R2[1] * 100, 1), "% of the variance"),
-       y=paste("PC2: ", round(pcaResults@R2[2] * 100, 1), "% of the variance"),
-       title = "Unsupervised Random Forest PCA - Category") +
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
-
-# get binary column for tumor presence
-plotData$TumorB = ifelse(plotData$Tumors > 0, "1", "0")
-
-# PCA plot - URF
-ggplot(plotData, aes(x = PC1, y = PC2, color = TumorB, shape = Sex)) +
-  geom_point() +
-  labs(x=paste("PC1: ", round(pcaResults@R2[1] * 100, 1), "% of the variance"),
-       y=paste("PC2: ", round(pcaResults@R2[2] * 100, 1), "% of the variance"),
-       title = "Unsupervised Random Forest PCA - Tumor Presence") +
-  theme(plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.line = element_line(colour = "black"))
-
-# similarity matrix based on condition
-proxAnn = prox
+# similarity matrix based on condition - proximity 4
+proxAnn = store_proximities[[4]]
 rownames(proxAnn) = metadata$Category[match(rownames(proxAnn), rownames(metadata))]
 colnames(proxAnn) = metadata$Category[match(colnames(proxAnn), rownames(metadata))]
 proxAnn = 1-proxAnn
 pheatmap::pheatmap(proxAnn,
                    main = "Similarity URF - Condition")
+# no clustering visible
 
 # get new variable yes if there is a tumor and no if there is not a tumor
 metadata$tumorB = ifelse(metadata$Tumors > 0, "Yes", "No")
 
 # similarity matrix based on tumor presence
-proxAnnT = prox
+proxAnnT = store_proximities[[4]]
 rownames(proxAnnT) = metadata$tumorB[match(rownames(proxAnnT), rownames(metadata))]
 colnames(proxAnnT) = metadata$tumorB[match(colnames(proxAnnT), rownames(metadata))]
 proxAnnT = 1-proxAnnT
 pheatmap::pheatmap(proxAnnT,
                    main = "Similarity Matrix URF - Tumor Presence")
+# no clustering visible
 
-
-# examine features both present in RF and URF
-intersect = intersect(rownames(featuresRF), rownames(featuresURF))
-# only trypthophan intersect
 
 s#########-----------DIABLO/FACTORIZATION - DO NOT RUN----------------############
 # skip this part as i was unable to really use it #
-# BiocManager::install('mixOmics')
-# library(mixOmics)
+BiocManager::install('mixOmics')
+library(mixOmics)
 X <- list(microbiome = data[,1:10], metabolite = data[,11:425])
 Y <- data[,426]
 result.diablo.tcga <- block.plsda(X, Y)
